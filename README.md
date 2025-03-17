@@ -1,102 +1,76 @@
-# NeuroSketch - GitHub Projects Tasks
+# Running Neurosketch
 
-## Week 1
+## Frontend
 
-### Isaiah
-- [ ] Set up GitHub repository and project structure
-- [ ] Create development environment documentation
-- [ ] Initialize FastAPI backend framework
+### Create a Python environment under the 'frontend' folder (Make sure you are in that folder)
 
-### Mihiretu
-- [ ] Set up Streamlit application
-- [ ] Implement basic streamlit_canvas functionality
-- [ ] Create session management UI prototype
+```bash
+python -m venv frontend_env
+```
 
-### Skeez
-- [ ] Design Postgres database schema
-- [ ] Create scripts for database initialization
-- [ ] Document entity relationships
+### Activate the environment
 
-## Week 2
+In Windows:
 
-### Isaiah
-- [ ] Implement server-side session management
-- [ ] Develop multiprocessing for handling multiple canvases
-- [ ] Create communication protocol for frontend-backend
-- [ ] Implement API endpoints for user sessions
-### Mihiretu
-- [ ] Enhance drawing tools and capabilities
-- [ ] Implement canvas state synchronization
-- [ ] Test drawing functionality with multiple users
+```bash
+frontend_env\Scripts\activate
+```
 
-### Skeez
-- [ ] Begin work on session listing functionality
+In Linux/Mac:
 
-## Week 3- Interim Presentation Week
+```bash
+source frontend_env/bin/activate
+```
 
-### You
-- [ ] Begin LLM integration research and planning
-- [ ] Start worker node setup for AI processing
+### Install the required packages
 
-### Mihiretu
-- [ ] Add color picker and brush customization
-- [ ] Document current functionality
+```bash
+pip install -r requirements.txt
+```
 
-### Skeez
-- [ ] Test current system integration
 
-## Week 4
 
-### You
-- [ ] Complete LLM API integration
-- [ ] Implement multithreading for AI request handling
-- [ ] Develop queuing system for AI tasks
+## Backend
 
-### Mihiretu
-- [ ] Implement layer management system
-- [ ] Create AI prompt input interface
-- [ ] Begin real-time collaborative features
+### Create a Python environment under the 'backend' folder (Make sure you are in that folder)
 
-### Skeez
-- [ ] Implement anonymous user tracking
-- [ ] Test database performance
+```bash 
+python -m venv backend_env
+```
 
-## Week 5
+### Activate the environment
 
-### You
-- [ ] Complete system integration
-- [ ] Implement distributed computing aspects
-- [ ] Begin testing across multiple machines
+In Windows:
 
-### Mihiretu
-- [ ] Polish frontend interface
-- [ ] Implement real-time updates visualization
-- [ ] Add visual feedback for AI processing
+```bash
+backend_env\Scripts\activate
+```
 
-### Skeez
-- [ ] Identify bugs from testing
-- [ ] Complete user documentation
-- [ ] Assist with load testing
+In Linux/Mac:
 
-## Week 6 - Final Submission and Presentation
+```bash
+source backend_env/bin/activate
+```
 
-### Isaiah
-- [ ] Finalize code and submit (April 15)
-- [ ] Create deployment instructions
-- [ ] Lead final presentation preparation
+### Install the required packages
 
-### Mihiretu
-- [ ] Create final presentation slides
-- [ ] Prepare demonstration script
-- [ ] Highlight technical achievements
+```bash
+pip install -r requirements.txt
+```
 
-### Skeez
-- [ ] Ensure all documentation is complete
-- [ ] Practice demonstration procedures
-- [ ] Prepare for Q&A portions
+### Run the backend server
 
-## Milestones
-- [x] Project title and initial presentation (Feb 27, 2025)
-- [ ] Interim presentation (March 25, 2025)
-- [ ] Final code submission (April 15, 2025)
-- [ ] Final demonstration (April 22, 2025)
+```bash
+python -m app.main
+```
+
+### To run the tests (Hello World test as an example)
+
+```bash
+pytest tests/test_hello_world.py
+```
+
+
+## Database
+
+Not implemented yet
