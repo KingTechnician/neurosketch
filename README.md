@@ -1,6 +1,6 @@
 # NeuroSketch - GitHub Projects Tasks
 
-## Week 1 (March 10-17)
+## Week 1
 
 ### Isaiah
 - [ ] Set up GitHub repository and project structure
@@ -17,7 +17,7 @@
 - [ ] Create scripts for database initialization
 - [ ] Document entity relationships
 
-## Week 2 (March 18-24)
+## Week 2
 
 ### Isaiah
 - [ ] Implement server-side session management
@@ -32,7 +32,7 @@
 ### Skeez
 - [ ] Begin work on session listing functionality
 
-## Week 3 (March 25-31) - Interim Presentation Week
+## Week 3- Interim Presentation Week
 
 ### You
 - [ ] Begin LLM integration research and planning
@@ -45,7 +45,7 @@
 ### Skeez
 - [ ] Test current system integration
 
-## Week 4 (April 1-7)
+## Week 4
 
 ### You
 - [ ] Complete LLM API integration
@@ -61,7 +61,7 @@
 - [ ] Implement anonymous user tracking
 - [ ] Test database performance
 
-## Week 5 (April 8-14)
+## Week 5
 
 ### You
 - [ ] Complete system integration
@@ -78,7 +78,7 @@
 - [ ] Complete user documentation
 - [ ] Assist with load testing
 
-## Week 6 (April 15-22) - Final Submission and Presentation
+## Week 6 - Final Submission and Presentation
 
 ### Isaiah
 - [ ] Finalize code and submit (April 15)
