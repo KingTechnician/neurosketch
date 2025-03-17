@@ -3,14 +3,19 @@
 ## Week 1
 
 ### Isaiah
-- [ ] Set up GitHub repository and project structure
-- [ ] Create development environment documentation
-- [ ] Initialize FastAPI backend framework
+- [x] Set up GitHub repository and project structure
+- [x] Create development environment documentation
+- [x] Initialize FastAPI backend framework
 
 ### Mihiretu
 - [ ] Set up Streamlit application
 - [ ] Implement basic streamlit_canvas functionality
 - [ ] Create session management UI prototype
+    - This involves making some menu that shows available sessions and allows the user to join them - doesn't have to be functional, just a placeholder for now
+
+Helpful links:
+- [Streamlit documentation](https://docs.streamlit.io/en/stable/)
+- [Streamlit Drawing Canvas](https://github.com/andfanilo/streamlit-drawable-canvas) (You could really just copy most of the code from their example)
 
 ### Skeez
 - [ ] Design Postgres database schema
