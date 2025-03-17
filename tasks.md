@@ -34,7 +34,7 @@
 
 ## Week 3- Interim Presentation Week
 
-### You
+### Isaiah
 - [ ] Begin LLM integration research and planning
 - [ ] Start worker node setup for AI processing
 
@@ -47,7 +47,7 @@
 
 ## Week 4
 
-### You
+### Isaiah
 - [ ] Complete LLM API integration
 - [ ] Implement multithreading for AI request handling
 - [ ] Develop queuing system for AI tasks
@@ -63,7 +63,7 @@
 
 ## Week 5
 
-### You
+### Isaiah
 - [ ] Complete system integration
 - [ ] Implement distributed computing aspects
 - [ ] Begin testing across multiple machines
