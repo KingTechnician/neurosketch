@@ -19,8 +19,17 @@ Helpful links:
 
 ### Skeez
 - [ ] Design Postgres database schema
+    - Create a table for users, and a table for sessions
+    - Sessions are for users logged in, sessions are for instances of drawing as a group
 - [ ] Create scripts for database initialization
-- [ ] Document entity relationships
+- [ ] Document entity relationships (Stretch Goal)
+
+
+Helpful links:
+- [Postgres data types](https://medium.com/yavar/postgresql-data-types-f63948e143b6)
+- [Creating tables in Postgres](https://python.plainenglish.io/demystifying-database-interactions-with-psycopg3-a-practical-guide-54f60d268211)
+- [Creating entity relationships](https://hasura.io/learn/database/postgresql/core-concepts/6-postgresql-relationships/)
+- [This explains what foreign keys are and how they work](https://medium.com/the-table-sql-and-devtalk/how-to-use-a-foreign-key-referring-to-the-source-table-in-postgres-170cdb98f948)
 
 ## Week 2
 
