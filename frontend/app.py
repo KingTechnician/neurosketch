@@ -11,35 +11,57 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 from streamlit_drawable_canvas import st_canvas
+from classes import Session, SAMPLE_SESSIONS
 
+
+def show_session_list():
+    st.title("Available Drawing Sessions")
+    
+    for session in SAMPLE_SESSIONS:
+        with st.expander(f"📝 {session.title}"):
+            st.text(f"Session ID: {session.session_id}")
+            st.write("Participants:")
+            for participant in session.participants:
+                st.text(f"  • {participant}")
+            if st.button("Join Session", key=session.session_id):
+                st.session_state["selected_session"] = session
+                st.session_state["show_canvas"] = True
+                st.rerun()
 
 def main():
     if "button_id" not in st.session_state:
         st.session_state["button_id"] = ""
     if "color_to_label" not in st.session_state:
         st.session_state["color_to_label"] = {}
-    PAGES = {
-      
-        "Basic example": full_app,
-       
-    }
-    page = st.sidebar.selectbox("Page:", options=list(PAGES.keys()))
-    PAGES[page]()
+    if "selected_session" not in st.session_state:
+        st.session_state["selected_session"] = None
+    if "show_canvas" not in st.session_state:
+        st.session_state["show_canvas"] = False
+        
+    if not st.session_state["show_canvas"]:
+        show_session_list()
+    else:
+        st.title(f"Drawing Session: {st.session_state['selected_session'].title}")
+        if st.button("← Back to Sessions"):
+            st.session_state["show_canvas"] = False
+            st.session_state["selected_session"] = None
+            st.rerun()
+        full_app()
 
-    with st.sidebar:
-        st.markdown("---")
-        st.markdown(
-            '<h6>Made in &nbsp<img src="https://streamlit.io/images/brand/streamlit-mark-color.png" alt="Streamlit logo" height="16">&nbsp by <a href="https://twitter.com/andfanilo">@andfanilo</a></h6>',
-            unsafe_allow_html=True,
-        )
-        st.markdown(
-            '<div style="margin: 0.75em 0;"><a href="https://www.buymeacoffee.com/andfanilo" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/default-orange.png" alt="Buy Me A Coffee" height="41" width="174"></a></div>',
-            unsafe_allow_html=True,
-        )
+    if st.session_state["show_canvas"]:
+        with st.sidebar:
+            st.markdown("---")
+            st.markdown(
+                '<h6>Made in &nbsp<img src="https://streamlit.io/images/brand/streamlit-mark-color.png" alt="Streamlit logo" height="16">&nbsp by <a href="https://twitter.com/andfanilo">@andfanilo</a></h6>',
+                unsafe_allow_html=True,
+            )
+            st.markdown(
+                '<div style="margin: 0.75em 0;"><a href="https://www.buymeacoffee.com/andfanilo" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/default-orange.png" alt="Buy Me A Coffee" height="41" width="174"></a></div>',
+                unsafe_allow_html=True,
+            )
 
 
 def full_app():
-    st.sidebar.header("Configuration")
     st.markdown(
         """
     Draw on the canvas, get the drawings back to Streamlit!
@@ -90,8 +112,8 @@ def full_app():
 
 if __name__ == "__main__":
     st.set_page_config(
-        page_title="Streamlit Drawable Canvas", page_icon=":pencil2:"
+        page_title="Neurosketch", page_icon=":pencil2:"
     )
-    st.title("Drawable Canvas")
+    st.title("Neurosketch")
     st.sidebar.subheader("Configuration")
     main()
