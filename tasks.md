@@ -3,19 +3,33 @@
 ## Week 1
 
 ### Isaiah
-- [ ] Set up GitHub repository and project structure
-- [ ] Create development environment documentation
-- [ ] Initialize FastAPI backend framework
+- [x] Set up GitHub repository and project structure
+- [x] Create development environment documentation
+- [x] Initialize FastAPI backend framework
 
 ### Mihiretu
-- [ ] Set up Streamlit application
-- [ ] Implement basic streamlit_canvas functionality
-- [ ] Create session management UI prototype
+- [x] Set up Streamlit application
+- [x] Implement basic streamlit_canvas functionality
+- [x] Create session management UI prototype
+    - This involves making some menu that shows available sessions and allows the user to join them - doesn't have to be functional, just a placeholder for now
+
+Helpful links:
+- [Streamlit documentation](https://docs.streamlit.io/en/stable/)
+- [Streamlit Drawing Canvas](https://github.com/andfanilo/streamlit-drawable-canvas) (You could really just copy most of the code from their example)
 
 ### Skeez
 - [ ] Design Postgres database schema
+    - Create a table for users, and a table for sessions
+    - Sessions are for users logged in, sessions are for instances of drawing as a group
 - [ ] Create scripts for database initialization
-- [ ] Document entity relationships
+- [ ] Document entity relationships (Stretch Goal)
+
+
+Helpful links:
+- [Postgres data types](https://medium.com/yavar/postgresql-data-types-f63948e143b6)
+- [Creating tables in Postgres](https://python.plainenglish.io/demystifying-database-interactions-with-psycopg3-a-practical-guide-54f60d268211)
+- [Creating entity relationships](https://hasura.io/learn/database/postgresql/core-concepts/6-postgresql-relationships/)
+- [This explains what foreign keys are and how they work](https://medium.com/the-table-sql-and-devtalk/how-to-use-a-foreign-key-referring-to-the-source-table-in-postgres-170cdb98f948)
 
 ## Week 2
 
@@ -34,7 +48,7 @@
 
 ## Week 3- Interim Presentation Week
 
-### You
+### Isaiah
 - [ ] Begin LLM integration research and planning
 - [ ] Start worker node setup for AI processing
 
@@ -47,7 +61,7 @@
 
 ## Week 4
 
-### You
+### Isaiah
 - [ ] Complete LLM API integration
 - [ ] Implement multithreading for AI request handling
 - [ ] Develop queuing system for AI tasks
@@ -63,7 +77,7 @@
 
 ## Week 5
 
-### You
+### Isaiah
 - [ ] Complete system integration
 - [ ] Implement distributed computing aspects
 - [ ] Begin testing across multiple machines

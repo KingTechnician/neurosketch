@@ -1,2 +1,3 @@
 frontend/frontend_env/*
 backend/backend_env/*
+db/db_env/*
