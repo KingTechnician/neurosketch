@@ -6,7 +6,7 @@ import uuid
 class Session:
     title: str
     session_id: str
-    participants: List[str]
+    participants: List[str] #This will likely be a UUID
 
 # Sample sessions for testing
 SAMPLE_SESSIONS = [
