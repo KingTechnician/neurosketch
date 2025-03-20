@@ -8,9 +8,9 @@
 - [x] Initialize FastAPI backend framework
 
 ### Mihiretu
-- [ ] Set up Streamlit application
-- [ ] Implement basic streamlit_canvas functionality
-- [ ] Create session management UI prototype
+- [x] Set up Streamlit application
+- [x] Implement basic streamlit_canvas functionality
+- [x] Create session management UI prototype
     - This involves making some menu that shows available sessions and allows the user to join them - doesn't have to be functional, just a placeholder for now
 
 Helpful links:
