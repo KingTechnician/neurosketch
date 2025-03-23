@@ -35,21 +35,24 @@ Helpful links:
 
 ### Isaiah
 - [ ] Implement server-side session management
-- [ ] Develop multiprocessing for handling multiple canvases
+    - Private key stored locally, public key stored in server
+    - server sends encrypted code to client, client decrypts and sends back
 - [ ] Create communication protocol for frontend-backend
+    - Module for REST requests to the backend
 - [ ] Implement API endpoints for user sessions
+- [ ] Begin LLM integration research and planning
 ### Mihiretu
 - [ ] Enhance drawing tools and capabilities
-- [ ] Implement canvas state synchronization
+- [ ] Implement canvas state synchronization (Blockers: Isaiah's work first)
 - [ ] Test drawing functionality with multiple users
 
 ### Skeez
-- [ ] Begin work on session listing functionality
+- [ ] Begin work on session listing functionality (Blockers: Isaiah's work first)
+    - Create a page that lists all available sessions
 
 ## Week 3- Interim Presentation Week
 
 ### Isaiah
-- [ ] Begin LLM integration research and planning
 - [ ] Start worker node setup for AI processing
 
 ### Mihiretu
