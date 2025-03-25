@@ -34,12 +34,13 @@ Helpful links:
 ## Week 2
 
 ### Isaiah
-- [ ] Implement server-side session management
-    - Private key stored locally, public key stored in server
-    - server sends encrypted code to client, client decrypts and sends back
+- [x] Implement server-side session management
+    - [x] Private key stored locally, public key stored in server
+    - [ ] server sends encrypted code to client, client decrypts and sends back (Blockers: Skeez's work first)
 - [ ] Create communication protocol for frontend-backend
     - Module for REST requests to the backend
-- [ ] Implement API endpoints for user sessions
+- [ ] Implement API endpoints for user sessions (Blockers: Skeez's work first)
+    - Create endpoints for creating, joining, and listing sessions
 - [ ] Begin LLM integration research and planning
 ### Mihiretu
 - [ ] Enhance drawing tools and capabilities

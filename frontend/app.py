@@ -12,6 +12,7 @@ import pandas as pd
 import streamlit as st
 from streamlit_drawable_canvas import st_canvas
 from classes import Session, SAMPLE_SESSIONS
+from identity_utils import IdentityUtils
 
 
 def show_session_list():
@@ -28,6 +29,17 @@ def show_session_list():
                 st.session_state["show_canvas"] = True
                 st.rerun()
 
+def show_identity_creation():
+    st.warning("⚠️ New User Detected! You need to create an identity to use Neurosketch.")
+    username = st.text_input("Choose a username:")
+    if st.button("Create Identity"):
+        if username:
+            st.session_state["identity_utils"].create_identity(username)
+            st.success("🔑 Identity created! Important: Never delete your key file (user_identity.json) or you will lose access to your account. Reload to get changes.")
+            #st.rerun()
+        else:
+            st.error("Please enter a username")
+
 def main():
     if "button_id" not in st.session_state:
         st.session_state["button_id"] = ""
@@ -37,19 +49,35 @@ def main():
         st.session_state["selected_session"] = None
     if "show_canvas" not in st.session_state:
         st.session_state["show_canvas"] = False
-        
-    if not st.session_state["show_canvas"]:
-        show_session_list()
+    if "identity_utils" not in st.session_state:
+        st.session_state["identity_utils"] = IdentityUtils()
+
+    # Gate all content behind identity check
+    if not st.session_state["identity_utils"].has_identity:
+        show_identity_creation()
     else:
-        st.title(f"Drawing Session: {st.session_state['selected_session'].title}")
-        if st.button("← Back to Sessions"):
-            st.session_state["show_canvas"] = False
-            st.session_state["selected_session"] = None
-            st.rerun()
-        full_app()
+        # Only show app content if identity exists
+        if not st.session_state["show_canvas"]:
+            show_session_list()
+        else:
+            st.title(f"Drawing Session: {st.session_state['selected_session'].title}")
+            if st.button("← Back to Sessions"):
+                st.session_state["show_canvas"] = False
+                st.session_state["selected_session"] = None
+                st.rerun()
+            full_app()
 
     if st.session_state["show_canvas"]:
         with st.sidebar:
+            # Add connection status at top of sidebar
+            col1, col2 = st.columns([1, 4])
+            with col1:
+                st.markdown("🔴")  # Red circle for disconnected
+            with col2:
+                if st.session_state["identity_utils"].username:
+                    st.write(f"User: {st.session_state['identity_utils'].username}")
+                else:
+                    st.write("Not connected")
             st.markdown("---")
             st.markdown(
                 '<h6>Made in &nbsp<img src="https://streamlit.io/images/brand/streamlit-mark-color.png" alt="Streamlit logo" height="16">&nbsp by <a href="https://twitter.com/andfanilo">@andfanilo</a></h6>',
