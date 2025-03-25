@@ -3,3 +3,4 @@ backend/backend_env/*
 db/db_env/*
 */__pycache__/*
 frontend/user_identity.json
+
