@@ -1,22 +1,24 @@
 CREATE TABLE sessions(
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id TEXT PRIMARY KEY,
     title VARCHAR(255) NOT NULL,
-    canvas jsonb,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    canvas TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 )
 
 CREATE TABLE session_participants(
-    id uuid REFERENCES sessions(session_id) ON DELETE CASCADE,
-    user_id UUID NOT NULL, --References users table TODO
-    PRIMARY KEY (id, user_id)
+    id TEXT,
+    user_id TEXT NOT NULL,
+    PRIMARY KEY (id, user_id),
+    FOREIGN KEY (id) REFERENCES sessions(id) ON DELETE CASCADE
 )
 
 CREATE TABLE users(
-    id UUID PRIMARY KEY,
-    client_identifier CARCHAR (255) NOT NULL UNIQUE,
+    id TEXT PRIMARY KEY,
+    public_key VARCHAR(255) NOT NULL,
+    client_identifier VARCHAR(255) NOT NULL UNIQUE,
     display_name VARCHAR(100),
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 )
 
 ---Ignore this, but don't delete below: Useful for later

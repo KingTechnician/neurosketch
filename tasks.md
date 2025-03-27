@@ -18,11 +18,11 @@ Helpful links:
 - [Streamlit Drawing Canvas](https://github.com/andfanilo/streamlit-drawable-canvas) (You could really just copy most of the code from their example)
 
 ### Skeez
-- [ ] Design Postgres database schema
+- [x] Design Postgres database schema
     - Create a table for users, and a table for sessions
     - Sessions are for users logged in, sessions are for instances of drawing as a group
-- [ ] Create scripts for database initialization
-- [ ] Document entity relationships (Stretch Goal)
+- [x] Create scripts for database initialization
+- [x] Document entity relationships (Stretch Goal)
 
 
 Helpful links:
@@ -36,14 +36,13 @@ Helpful links:
 ### Isaiah
 - [x] Implement server-side session management
     - [x] Private key stored locally, public key stored in server
-    - [ ] server sends encrypted code to client, client decrypts and sends back (Blockers: Skeez's work first)
+    - [ ] server sends encrypted code to client, client decrypts and sends back
 - [ ] Create communication protocol for frontend-backend
     - Module for REST requests to the backend
-- [ ] Implement API endpoints for user sessions (Blockers: Skeez's work first)
+- [ ] Implement API endpoints for user sessions
     - Create endpoints for creating, joining, and listing sessions
 - [ ] Begin LLM integration research and planning
 ### Mihiretu
-- [ ] Enhance drawing tools and capabilities
 - [ ] Implement canvas state synchronization (Blockers: Isaiah's work first)
 - [ ] Test drawing functionality with multiple users
 

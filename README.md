@@ -28,6 +28,10 @@ source frontend_env/bin/activate
 pip install -r requirements.txt
 ```
 
+### Create a .env file in the 'frontend' folder with the following content:
+
+```bash
+
 
 
 ## Backend

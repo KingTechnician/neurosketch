@@ -1,4 +1,3 @@
-# This is where you would create the database and 
 import sqlite3
 
 # Create the database file and tables
