@@ -5,3 +5,5 @@ db/db_env/*
 frontend/user_identity.json
 db/neurosketch.db
 
+# Ignore all .env files
+*/*.env

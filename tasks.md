@@ -43,7 +43,6 @@ Helpful links:
     - Create endpoints for creating, joining, and listing sessions
 - [ ] Begin LLM integration research and planning
 ### Mihiretu
-- [ ] Enhance drawing tools and capabilities
 - [ ] Implement canvas state synchronization (Blockers: Isaiah's work first)
 - [ ] Test drawing functionality with multiple users
 
