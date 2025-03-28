@@ -36,6 +36,7 @@ PATH_TO_DB=<Path to the database file>
 
 
 
+
 ## Backend
 
 ### Create a Python environment under the 'backend' folder (Make sure you are in that folder)
