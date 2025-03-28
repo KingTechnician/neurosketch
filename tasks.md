@@ -49,8 +49,9 @@ Helpful links:
 - [ ] Test drawing functionality with multiple users
 
 ### Skeez
-- [ ] Begin work on session listing functionality (Blockers: Isaiah's work first)
-    - Create a page that lists all available sessions
+- [ ] Begin work on session listing functionality
+    - Create a page that lists all available sessions (use dmmanager.py)
+    - This involves allowing the user to grab the list of sessions that user is a participant in
 
 ## Week 3- Interim Presentation Week
 
