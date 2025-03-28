@@ -44,6 +44,7 @@ Helpful links:
 ### Mihiretu
 - [ ] Implement canvas state synchronization
     - [ ] Allow current canvas to be saved in database (use db_manager.py)
+canvas state synchronization (Blockers: Isaiah's work first)
 - [ ] Test drawing functionality with multiple users
 
 ### Skeez
