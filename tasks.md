@@ -37,13 +37,13 @@ Helpful links:
 - [x] Implement server-side session management
     - [x] Private key stored locally, public key stored in server
     - [ ] server sends encrypted code to client, client decrypts and sends back
-- [ ] Create communication protocol for frontend-backend
-    - Module for REST requests to the backend
-- [ ] Implement API endpoints for user sessions
+- [x] Create communication protocol for frontend-backend
+- [x] Implement API endpoints for user sessions
     - Create endpoints for creating, joining, and listing sessions
 - [ ] Begin LLM integration research and planning
 ### Mihiretu
-- [ ] Implement canvas state synchronization (Blockers: Isaiah's work first)
+- [ ] Implement canvas state synchronization
+    - [ ] Allow current canvas to be saved in database (use db_manager.py)
 - [ ] Test drawing functionality with multiple users
 
 ### Skeez
