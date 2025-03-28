@@ -42,8 +42,9 @@ Helpful links:
     - Create endpoints for creating, joining, and listing sessions
 - [ ] Begin LLM integration research and planning
 ### Mihiretu
-- [ ] Implement canvas state synchronization
-    - [ ] Allow current canvas to be saved in database (use db_manager.py)
+- [ ] Enhance drawing tools and capabilities
+- [ ] Implement canvas state synchronization (use db_manager.py)
+    - This involves making sure that the canvas state is saved to the database and can be retrieved when a user joins a session
 - [ ] Test drawing functionality with multiple users
 
 ### Skeez
