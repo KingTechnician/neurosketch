@@ -31,6 +31,8 @@ pip install -r requirements.txt
 ### Create a .env file in the 'frontend' folder with the following content:
 
 ```bash
+PATH_TO_DB=<Path to the database file>
+````
 
 
 
