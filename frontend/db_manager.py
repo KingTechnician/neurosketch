@@ -5,7 +5,7 @@ from contextlib import contextmanager
 from datetime import datetime
 import time
 
-from .models import Session, User, SessionParticipant
+from .classes import Session, User, SessionParticipant
 
 class DatabaseManager:
     def __init__(self):
