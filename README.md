@@ -33,10 +33,8 @@ pip install -r requirements.txt
 ```bash
 PATH_TO_DB=<Path to the database file>
 ````
-<<<<<<< HEAD
-=======
 
->>>>>>> 5d2d371398ff181f6c5852913c9f1fdc5d2b0f40
+
 
 
 ## Backend
