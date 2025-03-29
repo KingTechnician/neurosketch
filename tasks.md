@@ -36,17 +36,19 @@ Helpful links:
 ### Isaiah
 - [x] Implement server-side session management
     - [x] Private key stored locally, public key stored in server
-    - [ ] server sends encrypted code to client, client decrypts and sends back
+    - [x] server sends encrypted code to client, client decrypts and sends back
 - [x] Create communication protocol for frontend-backend
 - [x] Implement API endpoints for user sessions
     - Create endpoints for creating, joining, and listing sessions
 - [ ] Begin LLM integration research and planning
 ### Mihiretu
 
-- [ ] Enhance drawing tools and capabilities
+- [ ] Start session creation screen
+    - This involves creating a screen that allows the user to create a new session and set the session name, etc.
+    - This does not have to be functional
 - [ ] Implement canvas state synchronization (use db_manager.py)
     - This involves making sure that the canvas state is saved to the database and can be retrieved when a user joins a session
-- [ ] Test drawing functionality with multiple users
+- [ ] Test drawing functionality with multiple users (Script for making random drawing for a session, using db_manager.py in new threads)
 
 ### Skeez
 - [ ] Begin work on session listing functionality
