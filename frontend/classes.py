@@ -16,6 +16,7 @@ class Session:
         if self.participants is None:
             self.participants = []
 
+
     @classmethod
     def from_db_row(cls, row: tuple) -> 'Session':
         """Create a Session instance from a database row."""

@@ -10,6 +10,7 @@ from dotenv import load_dotenv
 
 from classes import Session, User, SessionParticipant
 
+
 class DatabaseManager:
     def __init__(self):
         load_dotenv()
