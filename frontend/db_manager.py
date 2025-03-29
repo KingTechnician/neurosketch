@@ -1,14 +1,19 @@
 import os
 import sqlite3
+import uuid
+import rsa
 from typing import List, Optional
 from contextlib import contextmanager
 from datetime import datetime
 import time
+from dotenv import load_dotenv
 
-from .classes import Session, User, SessionParticipant
+from classes import Session, User, SessionParticipant
+
 
 class DatabaseManager:
     def __init__(self):
+        load_dotenv()
         self.db_path = os.getenv('PATH_TO_DB')
         if not self.db_path:
             raise ValueError("Database path not found in environment variables")
@@ -116,6 +121,46 @@ class DatabaseManager:
             cursor.execute(query, (client_id,))
             row = cursor.fetchone()
             return User.from_db_row(tuple(row)) if row else None
+
+    def create_anonymous_user(self, display_name: str) -> User:
+        """Create an anonymous user with a random UUID and RSA key pair."""
+        # Generate UUIDs for both id and client_identifier
+        user_id = str(uuid.uuid4())
+        client_id = str(uuid.uuid4())
+        
+        # Generate RSA key pair
+        (pubkey, _) = rsa.newkeys(2048)
+        public_key = pubkey.save_pkcs1().decode()
+        
+        # Create and store user
+        user = User(
+            id=user_id,
+            public_key=public_key,
+            client_identifier=client_id,
+            display_name=display_name
+        )
+        self.create_user(user)
+        return user
+
+    def verify_user_identity(self, client_id: str, challenge_response: bytes, private_key: rsa.PrivateKey) -> bool:
+        """
+        Verify user identity using RSA challenge-response.
+        Returns True if verification succeeds, False otherwise.
+        """
+        user = self.get_user_by_client_id(client_id)
+        if not user:
+            return False
+            
+        try:
+            # Create a challenge using stored public key
+            public_key = rsa.PublicKey.load_pkcs1(user.public_key.encode())
+            # Decrypt response with private key and verify it matches
+            decrypted = rsa.decrypt(challenge_response, private_key)
+            # Encrypt with public key and compare
+            encrypted = rsa.encrypt(decrypted, public_key)
+            return encrypted == challenge_response
+        except:
+            return False
 
     # Participant Operations
     def add_participant(self, participant: SessionParticipant) -> bool:

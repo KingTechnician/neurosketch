@@ -10,6 +10,12 @@ class Session:
     canvas: Optional[str] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
+    participants: List[str] = None
+
+    def __post_init__(self):
+        if self.participants is None:
+            self.participants = []
+
 
     @classmethod
     def from_db_row(cls, row: tuple) -> 'Session':
@@ -57,18 +63,18 @@ class SessionParticipant:
 # Sample sessions for testing
 SAMPLE_SESSIONS = [
     Session(
-        "Team Brainstorm",
-        str(uuid.uuid4()),
-        ["user123", "user456", "user789"]
+        id=str(uuid.uuid4()),
+        title="Team Brainstorm",
+        participants=["user123", "user456", "user789"]
     ),
     Session(
-        "Project Wireframes",
-        str(uuid.uuid4()),
-        ["user456", "user234"]
+        id=str(uuid.uuid4()),
+        title="Project Wireframes",
+        participants=["user456", "user234"]
     ),
     Session(
-        "UI Design Review",
-        str(uuid.uuid4()),
-        ["user123", "user567", "user890", "user111"]
+        id=str(uuid.uuid4()),
+        title="UI Design Review",
+        participants=["user123", "user567", "user890", "user111"]
     )
 ]

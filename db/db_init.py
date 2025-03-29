@@ -27,7 +27,7 @@ CREATE TABLE session_participants(
 cursor.execute('''
 CREATE TABLE users(
     id TEXT PRIMARY KEY,
-    public_key VARCHAR(255) NOT NULL,
+    public_key TEXT NOT NULL,
     client_identifier VARCHAR(255) NOT NULL UNIQUE,
     display_name VARCHAR(100),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP

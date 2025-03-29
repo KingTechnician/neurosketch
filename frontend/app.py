@@ -13,6 +13,7 @@ import streamlit as st
 from streamlit_drawable_canvas import st_canvas
 from classes import Session, SAMPLE_SESSIONS
 from identity_utils import IdentityUtils
+from db_manager import DatabaseManager
 
 
 def show_session_list():
@@ -20,25 +21,29 @@ def show_session_list():
     
     for session in SAMPLE_SESSIONS:
         with st.expander(f"📝 {session.title}"):
-            st.text(f"Session ID: {session.session_id}")
+            st.text(f"Session ID: {session.id}")
             st.write("Participants:")
             for participant in session.participants:
                 st.text(f"  • {participant}")
-            if st.button("Join Session", key=session.session_id):
+            if st.button("Join Session", key=session.id):
                 st.session_state["selected_session"] = session
                 st.session_state["show_canvas"] = True
                 st.rerun()
 
 def show_identity_creation():
     st.warning("⚠️ New User Detected! You need to create an identity to use Neurosketch.")
+    display_name = st.text_input("Enter your display name:")
     username = st.text_input("Choose a username:")
     if st.button("Create Identity"):
-        if username:
+        if username and display_name:
             st.session_state["identity_utils"].create_identity(username)
+            # Create anonymous user in database
+            db_manager = DatabaseManager()
+            db_manager.create_anonymous_user(display_name)
             st.success("🔑 Identity created! Important: Never delete your key file (user_identity.json) or you will lose access to your account. Reload to get changes.")
             #st.rerun()
         else:
-            st.error("Please enter a username")
+            st.error("Please enter both username and display name")
 
 def main():
     if "button_id" not in st.session_state:
