@@ -40,7 +40,7 @@ Helpful links:
 - [x] Create communication protocol for frontend-backend
 - [x] Implement API endpoints for user sessions
     - Create endpoints for creating, joining, and listing sessions
-- [ ] Begin LLM integration research and planning
+- [x] Begin LLM integration research and planning
 ### Mihiretu
 
 - [ ] Start session creation screen
