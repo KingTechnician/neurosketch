@@ -58,11 +58,13 @@ Helpful links:
 ## Week 3- Interim Presentation Week
 
 ### Isaiah
-- [ ] Start worker node setup for AI processing
+- [ ] Start AI generation backend
+- [ ] Start Watchdog module for listening to file changes (database)
+- [ ] Experimental - find way to store private key in browser and/or cache
 
 ### Mihiretu
-- [ ] Add color picker and brush customization
-- [ ] Document current functionality
+- [ ] Use Watchdog module to listen for changes in the canvas (Blocking: Isaiah's work)
+- [ ] Expand the size of the canvas to be a more full page (similar to drawing on a piece of paper)
 
 ### Skeez
 - [ ] Test current system integration

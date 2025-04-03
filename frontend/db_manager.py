@@ -2,6 +2,7 @@ import os
 import sqlite3
 import uuid
 import rsa
+import threading
 from typing import List, Optional
 from contextlib import contextmanager
 from datetime import datetime
@@ -21,6 +22,41 @@ class DatabaseManager:
         # Enable WAL mode for better concurrent access
         with self._get_connection() as conn:
             conn.execute('PRAGMA journal_mode=WAL')
+        
+        # Initialize the reader-writer lock
+        self.rw_lock = threading.RLock()  # Reentrant lock for write operations
+        self.reader_count = 0  # Counter for active readers
+        self.reader_count_lock = threading.Lock()  # Lock to protect reader count
+
+    @contextmanager
+    def read_lock(self):
+        """Acquire a shared read lock."""
+        try:
+            # Increment reader count safely
+            with self.reader_count_lock:
+                self.reader_count += 1
+                if self.reader_count == 1:
+                    # First reader acquires the lock
+                    self.rw_lock.acquire()
+            yield
+        finally:
+            # Decrement reader count safely
+            with self.reader_count_lock:
+                self.reader_count -= 1
+                if self.reader_count == 0:
+                    # Last reader releases the lock
+                    self.rw_lock.release()
+
+    @contextmanager
+    def write_lock(self):
+        """Acquire an exclusive write lock."""
+        try:
+            # Acquire the lock for exclusive access
+            self.rw_lock.acquire()
+            yield
+        finally:
+            # Release the lock
+            self.rw_lock.release()
 
     @contextmanager
     def _get_connection(self):
@@ -34,19 +70,24 @@ class DatabaseManager:
             if conn:
                 conn.close()
 
-    def _execute_with_retry(self, query: str, params: tuple = None, max_retries: int = 3) -> sqlite3.Cursor:
+    def _execute_with_retry(self, query: str, params: tuple = None, max_retries: int = 3, is_write: bool = True) -> sqlite3.Cursor:
         """Execute a query with retry logic for handling concurrent access."""
+        # Choose the appropriate lock based on whether this is a read or write operation
+        lock_ctx = self.write_lock() if is_write else self.read_lock()
+        
         retry_count = 0
         while retry_count < max_retries:
             try:
-                with self._get_connection() as conn:
-                    cursor = conn.cursor()
-                    if params:
-                        cursor.execute(query, params)
-                    else:
-                        cursor.execute(query)
-                    conn.commit()
-                    return cursor
+                with lock_ctx:
+                    with self._get_connection() as conn:
+                        cursor = conn.cursor()
+                        if params:
+                            cursor.execute(query, params)
+                        else:
+                            cursor.execute(query)
+                        if is_write:
+                            conn.commit()
+                        return cursor
             except sqlite3.OperationalError as e:
                 if "database is locked" in str(e) and retry_count < max_retries - 1:
                     retry_count += 1
@@ -63,17 +104,18 @@ class DatabaseManager:
         INSERT INTO sessions (id, title, canvas)
         VALUES (?, ?, ?)
         """
-        cursor = self._execute_with_retry(query, (session.id, session.title, session.canvas))
+        cursor = self._execute_with_retry(query, (session.id, session.title, session.canvas), is_write=True)
         return cursor.rowcount > 0
 
     def get_session(self, session_id: str) -> Optional[Session]:
         """Retrieve a session by its ID."""
         query = "SELECT * FROM sessions WHERE id = ?"
-        with self._get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute(query, (session_id,))
-            row = cursor.fetchone()
-            return Session.from_db_row(tuple(row)) if row else None
+        with self.read_lock():
+            with self._get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute(query, (session_id,))
+                row = cursor.fetchone()
+                return Session.from_db_row(tuple(row)) if row else None
 
     def update_session(self, session: Session) -> bool:
         """Update an existing session."""
@@ -82,13 +124,13 @@ class DatabaseManager:
         SET title = ?, canvas = ?, updated_at = CURRENT_TIMESTAMP
         WHERE id = ?
         """
-        cursor = self._execute_with_retry(query, (session.title, session.canvas, session.id))
+        cursor = self._execute_with_retry(query, (session.title, session.canvas, session.id), is_write=True)
         return cursor.rowcount > 0
 
     def delete_session(self, session_id: str) -> bool:
         """Delete a session and its participants."""
         query = "DELETE FROM sessions WHERE id = ?"
-        cursor = self._execute_with_retry(query, (session_id,))
+        cursor = self._execute_with_retry(query, (session_id,), is_write=True)
         return cursor.rowcount > 0
 
     # User Operations
@@ -100,27 +142,30 @@ class DatabaseManager:
         """
         cursor = self._execute_with_retry(
             query, 
-            (user.id, user.public_key, user.client_identifier, user.display_name)
+            (user.id, user.public_key, user.client_identifier, user.display_name),
+            is_write=True
         )
         return cursor.rowcount > 0
 
     def get_user(self, user_id: str) -> Optional[User]:
         """Retrieve a user by their ID."""
         query = "SELECT * FROM users WHERE id = ?"
-        with self._get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute(query, (user_id,))
-            row = cursor.fetchone()
-            return User.from_db_row(tuple(row)) if row else None
+        with self.read_lock():
+            with self._get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute(query, (user_id,))
+                row = cursor.fetchone()
+                return User.from_db_row(tuple(row)) if row else None
 
     def get_user_by_client_id(self, client_id: str) -> Optional[User]:
         """Retrieve a user by their client identifier."""
         query = "SELECT * FROM users WHERE client_identifier = ?"
-        with self._get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute(query, (client_id,))
-            row = cursor.fetchone()
-            return User.from_db_row(tuple(row)) if row else None
+        with self.read_lock():
+            with self._get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute(query, (client_id,))
+                row = cursor.fetchone()
+                return User.from_db_row(tuple(row)) if row else None
 
     def create_anonymous_user(self, display_name: str) -> User:
         """Create an anonymous user with a random UUID and RSA key pair."""
@@ -171,7 +216,8 @@ class DatabaseManager:
         """
         cursor = self._execute_with_retry(
             query, 
-            (participant.session_id, participant.user_id)
+            (participant.session_id, participant.user_id),
+            is_write=True
         )
         return cursor.rowcount > 0
 
@@ -183,7 +229,8 @@ class DatabaseManager:
         """
         cursor = self._execute_with_retry(
             query, 
-            (participant.session_id, participant.user_id)
+            (participant.session_id, participant.user_id),
+            is_write=True
         )
         return cursor.rowcount > 0
 
@@ -194,10 +241,11 @@ class DatabaseManager:
         JOIN session_participants sp ON u.id = sp.user_id
         WHERE sp.id = ?
         """
-        with self._get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute(query, (session_id,))
-            return [User.from_db_row(tuple(row)) for row in cursor.fetchall()]
+        with self.read_lock():
+            with self._get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute(query, (session_id,))
+                return [User.from_db_row(tuple(row)) for row in cursor.fetchall()]
 
     def get_user_sessions(self, user_id: str) -> List[Session]:
         """Get all sessions a user is participating in."""
@@ -206,7 +254,8 @@ class DatabaseManager:
         JOIN session_participants sp ON s.id = sp.id
         WHERE sp.user_id = ?
         """
-        with self._get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute(query, (user_id,))
-            return [Session.from_db_row(tuple(row)) for row in cursor.fetchall()]
+        with self.read_lock():
+            with self._get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute(query, (user_id,))
+                return [Session.from_db_row(tuple(row)) for row in cursor.fetchall()]

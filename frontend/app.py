@@ -95,14 +95,6 @@ def main():
 
 
 def full_app():
-    st.markdown(
-        """
-    Draw on the canvas, get the drawings back to Streamlit!
-    * Configure canvas in the sidebar
-    * In transform mode, double-click an object to remove it
-    * In polygon mode, left-click to add a point, right-click to close the polygon, double-click to remove the latest point
-    """
-    )
 
     with st.echo("below"):
         # Specify canvas parameters in application
