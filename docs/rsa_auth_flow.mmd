@@ -1,0 +1,54 @@
+sequenceDiagram
+    participant User
+    participant IdentityUtils
+    participant DatabaseManager
+    participant LocalStorage
+    participant SQLiteDB
+
+    %% Key Generation and Storage
+    User->>IdentityUtils: create_identity(username)
+    activate IdentityUtils
+    Note over IdentityUtils: Generate RSA key pair<br/>(2048-bit)
+    IdentityUtils->>LocalStorage: Store private key & username<br/>(user_identity.json)
+    
+    IdentityUtils->>DatabaseManager: create_anonymous_user(display_name)
+    activate DatabaseManager
+    Note over DatabaseManager: Generate UUIDs for<br/>user_id & client_id
+    DatabaseManager->>SQLiteDB: Store user record with<br/>public key & identifiers
+    DatabaseManager-->>IdentityUtils: Return user object
+    deactivate DatabaseManager
+    IdentityUtils-->>User: Identity created
+    deactivate IdentityUtils
+
+    %% Verification Process
+    User->>IdentityUtils: Request access
+    activate IdentityUtils
+    IdentityUtils->>LocalStorage: Load private key
+    LocalStorage-->>IdentityUtils: Return private key
+    
+    IdentityUtils->>DatabaseManager: verify_user_identity(client_id, challenge_response, private_key)
+    activate DatabaseManager
+    DatabaseManager->>SQLiteDB: Get user by client_id
+    SQLiteDB-->>DatabaseManager: Return user with public key
+    
+    Note over DatabaseManager: 1. Load stored public key
+    Note over DatabaseManager: 2. Decrypt challenge<br/>response with private key
+    Note over DatabaseManager: 3. Encrypt decrypted data<br/>with public key
+    Note over DatabaseManager: 4. Compare with original<br/>challenge response
+    
+    alt Verification Success
+        DatabaseManager-->>IdentityUtils: Return true
+        IdentityUtils-->>User: Access granted
+    else Verification Failed
+        DatabaseManager-->>IdentityUtils: Return false
+        IdentityUtils-->>User: Access denied
+    end
+    deactivate DatabaseManager
+    deactivate IdentityUtils
+
+    %% Styling
+    style User fill:#f9f,stroke:#333,stroke-width:2px
+    style IdentityUtils fill:#bbf,stroke:#333,stroke-width:2px
+    style DatabaseManager fill:#bfb,stroke:#333,stroke-width:2px
+    style LocalStorage fill:#ff9,stroke:#333,stroke-width:2px
+    style SQLiteDB fill:#ff9,stroke:#333,stroke-width:2px

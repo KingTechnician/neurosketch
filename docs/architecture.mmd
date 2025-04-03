@@ -1,0 +1,78 @@
+graph TD
+    %% Main Components
+    Frontend[Frontend Layer]
+    Backend[Backend Layer]
+    DB[Database Layer]
+
+    %% Frontend Components
+    Frontend --> |Contains| F1[app.py]
+    Frontend --> |Contains| F2[canvas.py]
+    Frontend --> |Contains| F3[classes.py]
+    Frontend --> |Contains| F4[db_manager.py]
+    Frontend --> |Contains| F5[identity_utils.py]
+
+    %% Backend Components
+    Backend --> |Contains| B1[main.py]
+    Backend --> |Contains| B2[routes/]
+    Backend --> |Contains| B3[schemas/]
+
+    %% Database Components
+    DB --> |Contains| D1[db_init.py]
+    DB --> |Contains| D2[schemas.sql]
+
+    %% Interactions
+    F1 -->|Uses| F2
+    F1 -->|Uses| F3
+    F1 -->|Uses| F4
+    F1 -->|Uses| F5
+
+    F4 -->|Manages| D2
+    D1 -->|Initializes| D2
+
+    B1 -->|Exposes| B2
+    B2 -->|Uses| B3
+
+    %% Component Descriptions
+    subgraph "Frontend Components"
+        F1[app.py<br/>Main Streamlit Interface]
+        F2[canvas.py<br/>Drawing Canvas Logic]
+        F3[classes.py<br/>Data Models]
+        F4[db_manager.py<br/>Database Operations]
+        F5[identity_utils.py<br/>Authentication]
+    end
+
+    subgraph "Backend Components"
+        B1[main.py<br/>FastAPI Server]
+        B2[routes/<br/>API Endpoints]
+        B3[schemas/<br/>Data Validation]
+    end
+
+    subgraph "Database Components"
+        D1[db_init.py<br/>DB Initialization]
+        D2[schemas.sql<br/>Table Definitions]
+    end
+
+    %% Data Flow
+    F4 -->|Reads/Writes| SQLite[("SQLite DB<br/>Local File")]
+    D1 -->|Creates| SQLite
+
+    %% Authentication Flow
+    F5 -->|Generates| Keys[("RSA Keys<br/>Local Storage")]
+    F5 -->|Verifies| F4
+
+    %% Session Management
+    F1 -->|Manages| Sessions[("Drawing Sessions")]
+    Sessions -->|Stored in| SQLite
+
+    %% File Monitoring
+    FileWatcher[("File System Watcher")]
+    SQLite -->|Monitors| FileWatcher
+    FileWatcher -->|Notifies| F4
+
+    style Frontend fill:#f9f,stroke:#333,stroke-width:2px
+    style Backend fill:#bbf,stroke:#333,stroke-width:2px
+    style DB fill:#bfb,stroke:#333,stroke-width:2px
+    style SQLite fill:#ff9,stroke:#333,stroke-width:2px
+    style Keys fill:#ff9,stroke:#333,stroke-width:2px
+    style Sessions fill:#ff9,stroke:#333,stroke-width:2px
+    style FileWatcher fill:#ff9,stroke:#333,stroke-width:2px
