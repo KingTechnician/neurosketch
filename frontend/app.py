@@ -13,7 +13,17 @@ import streamlit as st
 from streamlit_drawable_canvas import st_canvas
 from classes import Session, SAMPLE_SESSIONS
 from identity_utils import IdentityUtils
-from db_manager import DatabaseManager
+from dotenv import load_dotenv
+from utils.db_manager import DatabaseManager
+from utils.db_watcher import setup_db_watcher
+
+load_dotenv()
+
+def on_db_change():
+    print("Hello! The database was just updated!", flush=True)
+
+# Set up database watcher
+db_watcher = setup_db_watcher(on_db_change)
 
 
 def show_session_list():
