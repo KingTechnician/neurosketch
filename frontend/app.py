@@ -16,11 +16,24 @@ from identity_utils import IdentityUtils
 from dotenv import load_dotenv
 from utils.db_manager import DatabaseManager
 from utils.db_watcher import setup_db_watcher
+import extra_streamlit_components as stx
+import rsa
+
 
 load_dotenv()
 
+
+st.set_page_config(
+        page_title="Neurosketch", page_icon=":pencil2:"
+    )
+
+cookie_manager = stx.CookieManager()
+key_for_cookie = "user_identity"
+print(cookie_manager.get(key_for_cookie))
+st.session_state["identity_utils"] = IdentityUtils(cookie_manager.get(key_for_cookie))
+
 def on_db_change():
-    print("Hello! The database was just updated!", flush=True)
+    pass
 
 # Set up database watcher
 db_watcher = setup_db_watcher(on_db_change)
@@ -40,18 +53,50 @@ def show_session_list():
                 st.session_state["show_canvas"] = True
                 st.rerun()
 
+def create_identity(username: str):
+    (pubkey,privkey) = rsa.newkeys(2048)
+    key_data = {    
+        "username": username,
+        "private_key": privkey.save_pkcs1().decode()
+    }
+    return key_data
+
+def disable(b):
+    st.session_state["login_button_disabled"] = b
+
+def handle_identity_creation():
+    st.session_state["identity_created"] = True
+    st.session_state["login_button_disabled"] = True
+
 def show_identity_creation():
     st.warning("⚠️ New User Detected! You need to create an identity to use Neurosketch.")
     display_name = st.text_input("Enter your display name:")
     username = st.text_input("Choose a username:")
-    if st.button("Create Identity"):
+    
+    # Show success message if identity was just created
+    if st.session_state.get("identity_created", False):
+        st.success("🔑 Identity created! Important: Never delete your key file (user_identity.json) or you will lose access to your account.")
+        if st.session_state.get("identity_key_data"):
+            st.json(st.session_state["identity_key_data"])
+            # Set cookie after showing messages
+            cookie_manager.set(key_for_cookie, json.dumps(st.session_state["identity_key_data"]), key="cookie", expires_at=None)
+            # Reset the state
+            st.session_state["identity_created"] = False
+            st.session_state["identity_key_data"] = None
+            st.rerun()
+    
+    if st.button("Create Identity", disabled=st.session_state["login_button_disabled"]):
         if username and display_name:
-            st.session_state["identity_utils"].create_identity(username)
+            key_data = st.session_state["identity_utils"].create_identity(username)
+            # Store key data in session state
+            cookie_manager.set(key_for_cookie, json.dumps(key_data), key="cookie", expires_at=None)
             # Create anonymous user in database
             db_manager = DatabaseManager()
             db_manager.create_anonymous_user(display_name)
-            st.success("🔑 Identity created! Important: Never delete your key file (user_identity.json) or you will lose access to your account. Reload to get changes.")
-            #st.rerun()
+            # Set flags and trigger rerun
+            st.session_state["identity_created"] = True
+            st.session_state["login_button_disabled"] = True
+            st.rerun()
         else:
             st.error("Please enter both username and display name")
 
@@ -66,6 +111,12 @@ def main():
         st.session_state["show_canvas"] = False
     if "identity_utils" not in st.session_state:
         st.session_state["identity_utils"] = IdentityUtils()
+    if "identity_created" not in st.session_state:
+        st.session_state["identity_created"] = False
+    if "identity_key_data" not in st.session_state:
+        st.session_state["identity_key_data"] = None
+    if "login_button_disabled" not in st.session_state:
+        st.session_state["login_button_disabled"] = False
 
     # Gate all content behind identity check
     if not st.session_state["identity_utils"].has_identity:
@@ -146,9 +197,7 @@ def full_app():
 
 
 if __name__ == "__main__":
-    st.set_page_config(
-        page_title="Neurosketch", page_icon=":pencil2:"
-    )
+    
     st.title("Neurosketch")
     st.sidebar.subheader("Configuration")
     main()
