@@ -1,5 +1,15 @@
 # Running Neurosketch
 
+## [IMPORTANT NOTE]
+
+**Regardless of the environment, in order to run the Neurosketch utils, do the following:**
+
+Activate the environment (using either source or .\), make sure you are in the main directory, and run the following command:
+
+```bash
+pip install -e .
+```
+
 ## Frontend
 
 ### Create a Python environment under the 'frontend' folder (Make sure you are in that folder)

@@ -1,5 +1,6 @@
 frontend/frontend_env/*
 backend/backend_env/*
+backend/app/.env
 db/db_env/*
 */__pycache__/*
 frontend/user_identity.json
@@ -7,3 +8,9 @@ db/neurosketch.db
 
 # Ignore all .env files
 */*.env
+*/*__pycache__/*
+# Ignore all .DS_Store files
+*.DS_Store
+
+##Ignore egg files
+*.egg-info

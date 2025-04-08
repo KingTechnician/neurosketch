@@ -52,18 +52,18 @@ Helpful links:
 
 ### Skeez
 - [ ] Begin work on session listing functionality
-    - Create a page that lists all available sessions (use dmmanager.py)
+    - Create a page that lists all available sessions (use db manager.py)
     - This involves allowing the user to grab the list of sessions that user is a participant in
 
 ## Week 3- Interim Presentation Week
 
 ### Isaiah
 - [ ] Start AI generation backend
-- [ ] Start Watchdog module for listening to file changes (database)
+- [x] Start Watchdog module for listening to file changes (database)
 - [ ] Experimental - find way to store private key in browser and/or cache
 
 ### Mihiretu
-- [ ] Use Watchdog module to listen for changes in the canvas (Blocking: Isaiah's work)
+- [ ] Use Watchdog module to listen for changes in the canvas and update the current state of the canvas based on those changes
 - [ ] Expand the size of the canvas to be a more full page (similar to drawing on a piece of paper)
 
 ### Skeez
