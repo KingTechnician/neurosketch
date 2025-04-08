@@ -9,8 +9,8 @@ load_dotenv()  # Load environment variables from .env file
 
 # Create the FastAPI application
 app = FastAPI(
-    title="FastAPI Starter Template",
-    description="A simple FastAPI starter template for beginners",
+    title="Neurosketch API",
+    description="REST API for managing LLM interactions",
     version="1.0.0"
 )
 
