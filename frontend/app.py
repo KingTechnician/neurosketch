@@ -1,3 +1,8 @@
+import sys
+from pathlib import Path
+# Add the project root directory to Python path
+sys.path.append(str(Path(__file__).parent.parent))
+
 import base64
 import json
 import os
@@ -5,7 +10,6 @@ import re
 import time
 import uuid
 from io import BytesIO
-from pathlib import Path
 from PIL import Image
 import numpy as np
 import pandas as pd
