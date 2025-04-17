@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from .routes import hello_router
+from .routes import hello_router,generate_router
 from utils.db_watcher import setup_db_watcher
 from dotenv import load_dotenv
 
@@ -17,6 +17,7 @@ app = FastAPI(
 # Include our hello world router
 # This is where you would add additional routers as your API grows
 app.include_router(hello_router)
+app.include_router(generate_router)
 
 # Set up database file watcher
 @app.on_event("startup")

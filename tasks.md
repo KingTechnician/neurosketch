@@ -51,16 +51,18 @@ Helpful links:
 - [ ] Test drawing functionality with multiple users (Script for making random drawing for a session, using db_manager.py in new threads)
 
 ### Skeez
-- [ ] Begin work on session listing functionality
-    - Create a page that lists all available sessions (use db manager.py)
-    - This involves allowing the user to grab the list of sessions that user is a participant in
+- [x] ~~Begin work on session listing functionality~~
+    - ~~Create a page that lists all available sessions (use db manager.py)~~
+    - ~~This involves allowing the user to grab the list of sessions that user is a participant in~~
+    - Task triaged to Isaiah
 
 ## Week 3- Interim Presentation Week
 
 ### Isaiah
-- [ ] Start AI generation backend
+- [x] Start AI generation backend
 - [x] Start Watchdog module for listening to file changes (database)
-- [ ] Experimental - find way to store private key in browser and/or cache
+- [x] Experimental - find way to store private key in browser and/or cache
+   - Private keys are now stored in HTTPS cookies
 
 ### Mihiretu
 - [ ] Use Watchdog module to listen for changes in the canvas and update the current state of the canvas based on those changes

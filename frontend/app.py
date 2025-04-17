@@ -15,7 +15,7 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 from streamlit_drawable_canvas import st_canvas
-from classes import Session, SAMPLE_SESSIONS
+from classes import Session
 from identity_utils import IdentityUtils
 from dotenv import load_dotenv
 from utils.db_manager import DatabaseManager
@@ -37,21 +37,29 @@ print(cookie_manager.get(key_for_cookie))
 st.session_state["identity_utils"] = IdentityUtils(cookie_manager.get(key_for_cookie))
 
 def on_db_change():
-    pass
+    print("Something changed in the database.")
 
-# Set up database watcher
-db_watcher = setup_db_watcher(on_db_change)
+def initialize_db_watcher():
+    if "db_watcher" not in st.session_state:
+        st.session_state["db_watcher"] = setup_db_watcher(on_db_change)
 
 
 def show_session_list():
     st.title("Available Drawing Sessions")
     
-    for session in SAMPLE_SESSIONS:
+    # Get user's sessions from database
+    db_manager = DatabaseManager()
+    user_id = st.session_state["identity_utils"].user_id
+    sessions = db_manager.get_user_sessions(user_id)
+    
+    for session in sessions:
         with st.expander(f"📝 {session.title}"):
             st.text(f"Session ID: {session.id}")
             st.write("Participants:")
-            for participant in session.participants:
-                st.text(f"  • {participant}")
+            # Get participants for this session
+            participants = db_manager.get_session_participants(session.id)
+            for participant in participants:
+                st.text(f"  • {participant.display_name}")
             if st.button("Join Session", key=session.id):
                 st.session_state["selected_session"] = session
                 st.session_state["show_canvas"] = True
@@ -75,7 +83,6 @@ def handle_identity_creation():
 def show_identity_creation():
     st.warning("⚠️ New User Detected! You need to create an identity to use Neurosketch.")
     display_name = st.text_input("Enter your display name:")
-    username = st.text_input("Choose a username:")
     
     # Show success message if identity was just created
     if st.session_state.get("identity_created", False):
@@ -90,13 +97,14 @@ def show_identity_creation():
             st.rerun()
     
     if st.button("Create Identity", disabled=st.session_state["login_button_disabled"]):
-        if username and display_name:
-            key_data = st.session_state["identity_utils"].create_identity(username)
+        if display_name:
+            user_id = str(uuid.uuid4())
+            key_data = st.session_state["identity_utils"].create_identity(user_id)
             # Store key data in session state
             cookie_manager.set(key_for_cookie, json.dumps(key_data), key="cookie", expires_at=None)
             # Create anonymous user in database
             db_manager = DatabaseManager()
-            db_manager.create_anonymous_user(display_name)
+            db_manager.create_anonymous_user(user_id,display_name)
             # Set flags and trigger rerun
             st.session_state["identity_created"] = True
             st.session_state["login_button_disabled"] = True
@@ -105,6 +113,9 @@ def show_identity_creation():
             st.error("Please enter both username and display name")
 
 def main():
+    # Initialize database watcher once
+    initialize_db_watcher()
+    
     if "button_id" not in st.session_state:
         st.session_state["button_id"] = ""
     if "color_to_label" not in st.session_state:
@@ -201,7 +212,13 @@ def full_app():
 
 
 if __name__ == "__main__":
-    
-    st.title("Neurosketch")
-    st.sidebar.subheader("Configuration")
-    main()
+    try:
+        st.title("Neurosketch")
+        st.sidebar.subheader("Configuration")
+        main()
+    except Exception as e:
+        # Stop the watcher if it exists
+        if "db_watcher" in st.session_state:
+            st.session_state["db_watcher"].stop()
+            st.session_state["db_watcher"].join()
+        raise e
