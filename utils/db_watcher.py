@@ -14,8 +14,8 @@ class DBFileHandler(FileSystemEventHandler):
         
     def on_modified(self, event):
         if not event.is_directory:
-            # Check if file is database or WAL file
-            if event.src_path.endswith(('.db', '.db-wal', '.db-shm')):
+            # Only trigger on main db file changes, ignore WAL and SHM
+            if event.src_path.endswith('.db'):
                 self._debounce_callback()
     
     def _debounce_callback(self):
@@ -38,7 +38,7 @@ class DBFileHandler(FileSystemEventHandler):
         except Exception as e:
             print(f"Error in database change callback: {e}")
 
-def setup_db_watcher(callback_function, debounce_seconds=10):
+def setup_db_watcher(callback_function, debounce_seconds=1):
     """
     Set up a file system watcher for the database file.
     

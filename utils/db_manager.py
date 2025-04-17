@@ -9,7 +9,7 @@ from datetime import datetime
 import time
 from dotenv import load_dotenv
 
-from classes import Session, User, SessionParticipant
+from .classes import Session, User, SessionParticipant
 from utils.db_watcher import setup_db_watcher
 
 
@@ -181,10 +181,9 @@ class DatabaseManager:
                 row = cursor.fetchone()
                 return User.from_db_row(tuple(row)) if row else None
 
-    def create_anonymous_user(self, display_name: str) -> User:
+    def create_anonymous_user(self, user_id:str, display_name: str) -> User:
         """Create an anonymous user with a random UUID and RSA key pair."""
         # Generate UUIDs for both id and client_identifier
-        user_id = str(uuid.uuid4())
         client_id = str(uuid.uuid4())
         
         # Generate RSA key pair
