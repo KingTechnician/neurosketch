@@ -101,7 +101,9 @@ def show_session_list():
             st.write("Participants:")
             # Get participants for this session
             participants = db_manager.get_session_participants(session.id)
+
             print(participants)
+
             for participant in participants:
                 st.text(f"  • {participant.display_name}")
             if st.button("Join Session", key=session.id):
