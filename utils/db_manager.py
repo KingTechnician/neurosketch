@@ -119,6 +119,13 @@ class DatabaseManager:
         VALUES (?, ?, ?)
         """
         cursor = self._execute_with_retry(query, (session.id, session.title, session.canvas), is_write=True)
+
+        participant_query = """
+        INSERT INTO session_participants (id, user_id)
+        VALUES (?, ?)
+        """
+        for user_id in session.participants:
+            self._execute_with_retry(participant_query, (session.id, user_id), is_write=True)
         return cursor.rowcount > 0
 
     def get_session(self, session_id: str) -> Optional[Session]:
