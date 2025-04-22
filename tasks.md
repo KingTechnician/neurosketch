@@ -43,9 +43,11 @@ Helpful links:
 - [x] Begin LLM integration research and planning
 ### Mihiretu
 
-- [ ] Start session creation screen
-    - This involves creating a screen that allows the user to create a new session and set the session name, etc.
-    - This does not have to be functional
+- [x] ~~Start session creation screen~~
+    ~~- This involves creating a screen that allows the user to create a new session and set the session name, etc.~~
+    ~~- This does not have to be functional~~
+    
+    -  Task triaged to Isaiah
 - [ ] Implement canvas state synchronization (use db_manager.py)
     - This involves making sure that the canvas state is saved to the database and can be retrieved when a user joins a session
 - [ ] Test drawing functionality with multiple users (Script for making random drawing for a session, using db_manager.py in new threads)
@@ -66,7 +68,7 @@ Helpful links:
 
 ### Mihiretu
 - [ ] Use Watchdog module to listen for changes in the canvas and update the current state of the canvas based on those changes
-- [ ] Expand the size of the canvas to be a more full page (similar to drawing on a piece of paper)
+- [ ] ~~Expand the size of the canvas to be a more full page (similar to drawing on a piece of paper)~~ No longer needed
 
 ### Skeez
 - [ ] Test current system integration
@@ -79,25 +81,23 @@ Helpful links:
 - [ ] Develop queuing system for AI tasks
 
 ### Mihiretu
-- [ ] Implement layer management system
 - [ ] Create AI prompt input interface
 - [ ] Begin real-time collaborative features
 
 ### Skeez
-- [ ] Implement anonymous user tracking
+- [ ] ~~Implement anonymous user tracking~~ No longer relevant
 - [ ] Test database performance
 
 ## Week 5
 
 ### Isaiah
 - [ ] Complete system integration
-- [ ] Implement distributed computing aspects
+- [ ] Ensure distributed computing aspects are represented
 - [ ] Begin testing across multiple machines
 
 ### Mihiretu
 - [ ] Polish frontend interface
 - [ ] Implement real-time updates visualization
-- [ ] Add visual feedback for AI processing
 
 ### Skeez
 - [ ] Identify bugs from testing
@@ -107,7 +107,6 @@ Helpful links:
 ## Week 6 - Final Submission and Presentation
 
 ### Isaiah
-- [ ] Finalize code and submit (April 15)
 - [ ] Create deployment instructions
 - [ ] Lead final presentation preparation
 
@@ -118,11 +117,10 @@ Helpful links:
 
 ### Skeez
 - [ ] Ensure all documentation is complete
-- [ ] Practice demonstration procedures
 - [ ] Prepare for Q&A portions
 
 ## Milestones
 - [x] Project title and initial presentation (Feb 27, 2025)
-- [ ] Interim presentation (March 25, 2025)
-- [ ] Final code submission (April 15, 2025)
-- [ ] Final demonstration (April 22, 2025)
+- [x] Interim presentation (March 25, 2025)
+- [ ] Final code submission (April 28, 2025)
+- [ ] Final demonstration (April 28, 2025)
