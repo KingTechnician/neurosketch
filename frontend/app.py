@@ -28,12 +28,18 @@ load_dotenv()
 
 
 st.set_page_config(
-        page_title="Neurosketch", page_icon=":pencil2:"
+        page_title="Neurosketch", page_icon=":pencil2:",layout="wide",
     )
+
+
+print(st.session_state)
+
+
+
+
 
 cookie_manager = stx.CookieManager()
 key_for_cookie = "user_identity"
-print(cookie_manager.get(key_for_cookie))
 st.session_state["identity_utils"] = IdentityUtils(cookie_manager.get(key_for_cookie))
 
 def on_db_change():
@@ -47,10 +53,47 @@ def initialize_db_watcher():
 def show_session_list():
     st.title("Available Drawing Sessions")
     
-    # Get user's sessions from database
     db_manager = DatabaseManager()
+    
+    # Add new session expander
+    with st.expander("Start a new Session"):
+        with st.form("new_session_form"):
+            session_title = st.text_input("Session Title")
+            # Placeholder multiselect for inviting users (non-functional for now)
+            invited_users = st.multiselect(
+                "Invite Users",
+                options=["User 1", "User 2", "User 3"],  # Placeholder options
+                default=[]
+            )
+            col1, col2 = st.columns(2)
+            with col1:
+                canvas_width = st.number_input("Canvas Width", min_value=100, value=1000)
+            with col2:
+                canvas_height = st.number_input("Canvas Height", min_value=100, value=1000)
+            
+            # Submit button (no functionality yet)
+            submitted = st.form_submit_button("Create Session")
+
+            if submitted:
+                print("Creating new session...")
+                if session_title:
+                    # Create a new session in the database
+                    user_id = st.session_state["identity_utils"].user_id
+                    participants = [user_id]
+                    participants.extend(invited_users)  # Add invited users to participants list
+                    session_id = str(uuid.uuid4())
+                    session = Session(id = session_id,title=session_title, width=canvas_width, height=canvas_height,participants=participants)
+                    print(session)
+                    db_manager.create_session(session)
+                    
+                    st.success(f"Session '{session_title}' created successfully!")
+    
+    # Get user's sessions from database
     user_id = st.session_state["identity_utils"].user_id
     sessions = db_manager.get_user_sessions(user_id)
+
+    if not sessions:
+        st.warning("No sessions available. Create a new session to get started with drawing!")
     
     for session in sessions:
         with st.expander(f"📝 {session.title}"):
@@ -58,6 +101,7 @@ def show_session_list():
             st.write("Participants:")
             # Get participants for this session
             participants = db_manager.get_session_participants(session.id)
+            print(participants)
             for participant in participants:
                 st.text(f"  • {participant.display_name}")
             if st.button("Join Session", key=session.id):
@@ -155,60 +199,54 @@ def main():
             with col1:
                 st.markdown("🔴")  # Red circle for disconnected
             with col2:
-                if st.session_state["identity_utils"].username:
-                    st.write(f"User: {st.session_state['identity_utils'].username}")
+                if st.session_state["identity_utils"].user_id:
+                    st.write(f"User: {st.session_state['identity_utils'].user_id}")
                 else:
                     st.write("Not connected")
             st.markdown("---")
-            st.markdown(
-                '<h6>Made in &nbsp<img src="https://streamlit.io/images/brand/streamlit-mark-color.png" alt="Streamlit logo" height="16">&nbsp by <a href="https://twitter.com/andfanilo">@andfanilo</a></h6>',
-                unsafe_allow_html=True,
-            )
-            st.markdown(
-                '<div style="margin: 0.75em 0;"><a href="https://www.buymeacoffee.com/andfanilo" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/default-orange.png" alt="Buy Me A Coffee" height="41" width="174"></a></div>',
-                unsafe_allow_html=True,
-            )
 
 
 def full_app():
+    # Specify canvas parameters in application
+    drawing_mode = st.sidebar.selectbox(
+        "Drawing tool:",
+        ("freedraw", "line", "rect", "circle", "transform", "polygon", "point"),
+    )
+    stroke_width = st.sidebar.slider("Stroke width: ", 1, 25, 3)
+    if drawing_mode == "point":
+        point_display_radius = st.sidebar.slider("Point display radius: ", 1, 25, 3)
+    stroke_color = st.sidebar.color_picker("Stroke color hex: ")
+    bg_color = st.sidebar.color_picker("Background color hex: ", "#eee")
+    bg_image = st.sidebar.file_uploader("Background image:", type=["png", "jpg"])
 
-    with st.echo("below"):
-        # Specify canvas parameters in application
-        drawing_mode = st.sidebar.selectbox(
-            "Drawing tool:",
-            ("freedraw", "line", "rect", "circle", "transform", "polygon", "point"),
-        )
-        stroke_width = st.sidebar.slider("Stroke width: ", 1, 25, 3)
-        if drawing_mode == "point":
-            point_display_radius = st.sidebar.slider("Point display radius: ", 1, 25, 3)
-        stroke_color = st.sidebar.color_picker("Stroke color hex: ")
-        bg_color = st.sidebar.color_picker("Background color hex: ", "#eee")
-        bg_image = st.sidebar.file_uploader("Background image:", type=["png", "jpg"])
-        realtime_update = st.sidebar.checkbox("Update in realtime", True)
+    # Create a canvas component
+    canvas_result = st_canvas(
+        fill_color="rgba(255, 165, 0, 0.3)",  # Fixed fill color with some opacity
+        stroke_width=stroke_width,
+        stroke_color=stroke_color,
+        background_color=bg_color,
+        background_image=Image.open(bg_image) if bg_image else None,
+        update_streamlit=True,
+        height=1000,
+        width=1000,
+        drawing_mode=drawing_mode,
+        point_display_radius=point_display_radius if drawing_mode == "point" else 0,
+        display_toolbar=st.sidebar.checkbox("Display toolbar", True),
+        key="canvas_app",
+    )
 
-        # Create a canvas component
-        canvas_result = st_canvas(
-            fill_color="rgba(255, 165, 0, 0.3)",  # Fixed fill color with some opacity
-            stroke_width=stroke_width,
-            stroke_color=stroke_color,
-            background_color=bg_color,
-            background_image=Image.open(bg_image) if bg_image else None,
-            update_streamlit=realtime_update,
-            height=150,
-            drawing_mode=drawing_mode,
-            point_display_radius=point_display_radius if drawing_mode == "point" else 0,
-            display_toolbar=st.sidebar.checkbox("Display toolbar", True),
-            key="full_app",
-        )
+    
+    # Do something interesting with the image data and paths
+    #if canvas_result.image_data is not None:
+    #    st.image(canvas_result.image_data)
+    if canvas_result.json_data is not None:
+        objects = pd.json_normalize(canvas_result.json_data["objects"])
+        for col in objects.select_dtypes(include=["object"]).columns:
+            objects[col] = objects[col].astype("str")
+        st.dataframe(objects)
 
-        # Do something interesting with the image data and paths
-        if canvas_result.image_data is not None:
-            st.image(canvas_result.image_data)
-        if canvas_result.json_data is not None:
-            objects = pd.json_normalize(canvas_result.json_data["objects"])
-            for col in objects.select_dtypes(include=["object"]).columns:
-                objects[col] = objects[col].astype("str")
-            st.dataframe(objects)
+
+
 
 
 if __name__ == "__main__":

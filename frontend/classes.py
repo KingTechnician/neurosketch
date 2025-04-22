@@ -8,6 +8,8 @@ class Session:
     id: str
     title: str
     canvas: Optional[str] = None
+    width: int = 800
+    height: int = 600
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
     participants: List[str] = None
@@ -24,8 +26,11 @@ class Session:
             id=row[0],
             title=row[1],
             canvas=row[2],
-            created_at=datetime.fromisoformat(row[3]) if row[3] else None,
-            updated_at=datetime.fromisoformat(row[4]) if row[4] else None
+            width=row[3],
+            height=row[4],
+            participants=row[5].split(',') if row[5] else [],
+            created_at=datetime.fromisoformat(row[6]) if row[6] else None,
+            updated_at=datetime.fromisoformat(row[7]) if row[7] else None
         )
 
 @dataclass
