@@ -3,6 +3,10 @@ import time
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 from threading import Timer, Lock
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 class DBFileHandler(FileSystemEventHandler):
     def __init__(self, callback_function, debounce_seconds=1):

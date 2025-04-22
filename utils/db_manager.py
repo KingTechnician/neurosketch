@@ -13,6 +13,9 @@ from .classes import Session, User, SessionParticipant
 from utils.db_watcher import setup_db_watcher
 
 
+
+
+
 class DatabaseManager:
     def __init__(self):
         load_dotenv()
