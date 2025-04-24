@@ -41,12 +41,36 @@ cookie_manager = stx.CookieManager()
 key_for_cookie = "user_identity"
 st.session_state["identity_utils"] = IdentityUtils(cookie_manager.get(key_for_cookie))
 
+def convert_db_objects_to_canvas_format(db_objects):
+    """Convert CanvasObjectDB objects to canvas-compatible format"""
+    canvas_objects = []
+    for obj in db_objects:
+        # Parse object_data JSON string back to dict
+        canvas_obj = json.loads(obj.object_data)
+        # Ensure object has correct ID
+        canvas_obj["id"] = obj.id
+        canvas_objects.append(canvas_obj)
+    return {"objects": canvas_objects}
+
 def on_db_change():
-    print("Something changed in the database.")
+    """Handle database changes by updating in-memory canvas objects and refreshing the UI."""
+    if "selected_session" in st.session_state and st.session_state["selected_session"]:
+        session_id = st.session_state["selected_session"].id
+        db_manager = DatabaseManager()
+        latest_objects = db_manager.get_session_canvas_objects(session_id)
+        st.session_state["canvas_objects"] = latest_objects
+        # Convert to canvas format and store for next render
+        st.session_state["canvas_drawing_state"] = convert_db_objects_to_canvas_format(latest_objects)
+        st.rerun()
 
 def initialize_db_watcher():
+    """Initialize the database watcher and canvas objects state."""
     if "db_watcher" not in st.session_state:
         st.session_state["db_watcher"] = setup_db_watcher(on_db_change)
+    if "canvas_objects" not in st.session_state:
+        st.session_state["canvas_objects"] = []
+    if "previous_canvas_state" not in st.session_state:
+        st.session_state["previous_canvas_state"] = []
 
 
 def show_session_list():
@@ -154,8 +178,68 @@ def show_identity_creation():
         else:
             st.error("Please enter a display name")
 
+def process_canvas_changes(canvas_result, session_id: str, user_id: str):
+    """
+    Process changes in canvas objects and update the database accordingly.
+    Handles additions, modifications, and deletions with proper versioning.
+    """
+    if not canvas_result.json_data or "objects" not in canvas_result.json_data:
+        return
+
+    current_objects = canvas_result.json_data["objects"]
+    previous_objects = st.session_state.get("previous_canvas_state", [])
+    
+    # Convert objects to dictionaries for easier comparison
+    current_dict = {obj.get("id", str(i)): obj for i, obj in enumerate(current_objects)}
+    previous_dict = {obj.get("id", str(i)): obj for i, obj in enumerate(previous_objects)}
+    
+    db_manager = DatabaseManager()
+    
+    # Handle new and modified objects
+    for obj_id, obj in current_dict.items():
+        if obj_id not in previous_dict:
+            # New object
+            canvas_obj = {
+                "id": str(uuid.uuid4()),
+                "session_id": session_id,
+                "object_data": json.dumps(obj),
+                "created_by": user_id
+            }
+            db_manager.add_canvas_object(canvas_obj)
+        else:
+            # Modified object - check if content changed
+            prev_obj = previous_dict[obj_id]
+            if json.dumps(obj, sort_keys=True) != json.dumps(prev_obj, sort_keys=True):
+                # Get current version and increment
+                current_version = 1  # Default for new objects
+                for db_obj in st.session_state.get("canvas_objects", []):
+                    if db_obj.id == obj_id:
+                        current_version = db_obj.version
+                        break
+                
+                db_manager.edit_canvas_object(
+                    obj_id,
+                    json.dumps(obj),
+                    current_version + 1
+                )
+    
+    # Handle deleted objects
+    for obj_id in previous_dict:
+        if obj_id not in current_dict:
+            # Get current version and increment for deletion
+            current_version = 1
+            for db_obj in st.session_state.get("canvas_objects", []):
+                if db_obj.id == obj_id:
+                    current_version = db_obj.version
+                    break
+            
+            db_manager.delete_canvas_object(obj_id, current_version + 1)
+    
+    # Update previous state
+    st.session_state["previous_canvas_state"] = current_objects
+
 def main():
-    # Initialize database watcher once
+    # Initialize database watcher and canvas state
     initialize_db_watcher()
     
     if "button_id" not in st.session_state:
@@ -201,6 +285,17 @@ def main():
 
 
 def full_app():
+    # Get current user and session info
+    user_id = st.session_state["identity_utils"].user_id
+    session_id = st.session_state["selected_session"].id
+    
+    # Get current session's objects from database if not in state
+    if "canvas_drawing_state" not in st.session_state:
+        db_manager = DatabaseManager()
+        db_objects = db_manager.get_session_canvas_objects(session_id)
+        st.session_state["canvas_objects"] = db_objects
+        st.session_state["canvas_drawing_state"] = convert_db_objects_to_canvas_format(db_objects)
+    
     # Specify canvas parameters in application
     drawing_mode = st.sidebar.selectbox(
         "Drawing tool:",
@@ -227,17 +322,23 @@ def full_app():
         point_display_radius=point_display_radius if drawing_mode == "point" else 0,
         display_toolbar=st.sidebar.checkbox("Display toolbar", True),
         key="canvas_app",
+        initial_drawing=st.session_state.get("canvas_drawing_state", {"objects": []})
     )
+    
+    # Process any changes to canvas objects
+    if canvas_result.json_data is not None:
+        process_canvas_changes(canvas_result, session_id, user_id)
 
     
     # Do something interesting with the image data and paths
     #if canvas_result.image_data is not None:
     #    st.image(canvas_result.image_data)
-    if canvas_result.json_data is not None:
-        objects = pd.json_normalize(canvas_result.json_data["objects"])
-        for col in objects.select_dtypes(include=["object"]).columns:
-            objects[col] = objects[col].astype("str")
-        st.dataframe(objects)
+    with st.expander("Canvas Data"):
+        if canvas_result.json_data is not None:
+            objects = pd.json_normalize(canvas_result.json_data["objects"])
+            for col in objects.select_dtypes(include=["object"]).columns:
+                objects[col] = objects[col].astype("str")
+            st.dataframe(objects)
 
     ai_prompt = st.text_input("Have Claude 3.7 generate a drawing for you!")
     if st.button("Generate Drawing"):

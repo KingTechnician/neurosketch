@@ -7,6 +7,7 @@ from typing import List, Optional
 from contextlib import contextmanager
 from datetime import datetime
 import time
+from classes import CanvasObjectDB
 from dotenv import load_dotenv
 
 from .classes import Session, User, SessionParticipant
@@ -402,3 +403,20 @@ class DatabaseManager:
             is_write=True
         )
         return cursor.rowcount > 0
+
+    def get_session_canvas_objects(self, session_id: str) -> List[CanvasObjectDB]:
+        """
+        Get all canvas objects for a specific session.
+        
+        Args:
+            session_id (str): ID of the session to get objects for
+            
+        Returns:
+            List[CanvasObjectDB]: List of canvas objects in the session
+        """
+        query = "SELECT * FROM canvas_objects WHERE session_id = ?"
+        with self.read_lock():
+            with self._get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute(query, (session_id,))
+                return [CanvasObjectDB.from_db_row(tuple(row)) for row in cursor.fetchall()]
