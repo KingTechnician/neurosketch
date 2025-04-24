@@ -12,6 +12,7 @@ import uuid
 from io import BytesIO
 from PIL import Image
 import numpy as np
+import requests
 import pandas as pd
 import streamlit as st
 from streamlit_drawable_canvas import st_canvas
@@ -246,6 +247,37 @@ def full_app():
         for col in objects.select_dtypes(include=["object"]).columns:
             objects[col] = objects[col].astype("str")
         st.dataframe(objects)
+
+    ai_prompt = st.text_input("Have Claude 3.7 generate a drawing for you!")
+    if st.button("Generate Drawing"):
+        if ai_prompt:
+            # Call the backend API to generate a drawing
+            # For now, we will just show a success message
+            st.success(f"Drawing generation queued: {ai_prompt}")
+            generate_request_obj = {
+                "user_id": st.session_state["identity_utils"].user_id,
+                "timestamp": str(time.time()),
+                "prompt": ai_prompt
+            }
+            # Convert to string in a consistent way
+            request_data = json.dumps(generate_request_obj, sort_keys=True)
+            private_key = rsa.PrivateKey.load_pkcs1(st.session_state["identity_utils"].private_key.encode("utf-8"))
+            # Sign the actual request data
+            signature = rsa.sign(request_data.encode("utf-8"), private_key, "SHA-256")
+            # Convert signature to base64 string
+            signature_b64 = base64.b64encode(signature).decode("utf-8")
+            print("Request data being signed:", request_data)
+            print("Signature:", signature_b64)
+            # Create POST request to localhost:8000/generate, with signature as header
+            headers = {
+                "Authorization": f"Bearer {signature_b64}"
+            }
+            # Make the request to the backend API
+            response = requests.post("http://localhost:8000/generate", json=generate_request_obj, headers=headers)
+            print("Response:", response.json())
+
+        else:
+            st.error("Please enter a prompt to generate a drawing.")
 
 
 
