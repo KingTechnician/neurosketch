@@ -118,10 +118,10 @@ class DatabaseManager:
     def create_session(self, session: Session) -> bool:
         """Create a new session in the database."""
         query = """
-        INSERT INTO sessions (id, title, canvas)
-        VALUES (?, ?, ?)
+        INSERT INTO sessions (id,title,height,width)
+        VALUES (?, ?,?,?)
         """
-        cursor = self._execute_with_retry(query, (session.id, session.title, session.canvas), is_write=True)
+        cursor = self._execute_with_retry(query, (session.id, session.title, session.height,session.width), is_write=True)
 
         participant_query = """
         INSERT INTO session_participants (id, user_id)
@@ -298,3 +298,107 @@ class DatabaseManager:
                 cursor = conn.cursor()
                 cursor.execute(query, (user_id,))
                 return [Session.from_db_row(tuple(row)) for row in cursor.fetchall()]
+
+    def add_canvas_object(self, canvas_object: dict) -> bool:
+        """
+        Add a new canvas object to a session.
+        Always allowed as they're new objects.
+        
+        Args:
+            canvas_object (dict): Dictionary containing:
+                - id: Unique identifier for the object
+                - session_id: ID of the session this object belongs to
+                - object_data: JSON string of the object data
+                - created_by: ID of the user creating the object
+        
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        query = """
+        INSERT INTO canvas_objects (id, session_id, object_data, created_by)
+        VALUES (?, ?, ?, ?)
+        """
+        cursor = self._execute_with_retry(
+            query,
+            (canvas_object['id'], canvas_object['session_id'], 
+             canvas_object['object_data'], canvas_object['created_by']),
+            is_write=True
+        )
+        return cursor.rowcount > 0
+
+    def edit_canvas_object(self, object_id: str, object_data: str, new_version: int) -> bool:
+        """
+        Edit an existing canvas object.
+        Only proceeds if the new version is greater than the current version.
+        
+        Args:
+            object_id (str): ID of the object to edit
+            object_data (str): New JSON string of object data
+            new_version (int): New version number
+            
+        Returns:
+            bool: True if edit was successful, False if version check failed or object not found
+        """
+        # First get current version
+        version_query = "SELECT version FROM canvas_objects WHERE id = ?"
+        with self.read_lock():
+            with self._get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute(version_query, (object_id,))
+                result = cursor.fetchone()
+                if not result:
+                    return False
+                current_version = result[0]
+                
+                # Only proceed if new version is greater
+                if new_version <= current_version:
+                    return False
+        
+        # Update the object
+        update_query = """
+        UPDATE canvas_objects 
+        SET object_data = ?, version = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+        """
+        cursor = self._execute_with_retry(
+            update_query,
+            (object_data, new_version, object_id),
+            is_write=True
+        )
+        return cursor.rowcount > 0
+
+    def delete_canvas_object(self, object_id: str, version: int) -> bool:
+        """
+        Delete a canvas object.
+        Only proceeds if the provided version is greater than the current version.
+        
+        Args:
+            object_id (str): ID of the object to delete
+            version (int): Version number for verification
+            
+        Returns:
+            bool: True if deletion was successful, False if version check failed or object not found
+        """
+        # First get current version
+        version_query = "SELECT version FROM canvas_objects WHERE id = ?"
+        with self.read_lock():
+            with self._get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute(version_query, (object_id,))
+                result = cursor.fetchone()
+                if not result:
+                    return False
+                current_version = result[0]
+                
+                # Only proceed if provided version is greater
+                if version <= current_version:
+                    return False
+        
+        # Delete the object
+        delete_query = "DELETE FROM canvas_objects WHERE id = ?"
+        cursor = self._execute_with_retry(
+            delete_query,
+            (object_id,),
+            is_write=True
+        )
+        return cursor.rowcount > 0

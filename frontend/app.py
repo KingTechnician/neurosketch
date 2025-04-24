@@ -129,35 +129,30 @@ def show_identity_creation():
     st.warning("⚠️ New User Detected! You need to create an identity to use Neurosketch.")
     display_name = st.text_input("Enter your display name:")
     
-    # Show success message if identity was just created
-    if st.session_state.get("identity_created", False):
-        if st.session_state.get("identity_key_data"):
-            st.json(st.session_state["identity_key_data"])
-            # Set cookie after showing messages
-            cookie_manager.set(key_for_cookie, json.dumps(st.session_state["identity_key_data"]), key="cookie", expires_at=None)
-            # Reset the state
-            st.session_state["identity_created"] = False
-            st.session_state["identity_key_data"] = None
-            st.rerun()
-    
     if st.button("Create Identity", disabled=st.session_state["login_button_disabled"]):
         if display_name:
             user_id = str(uuid.uuid4())
             key_data = st.session_state["identity_utils"].create_identity(user_id)
-            # Store key data in session state
-            cookie_manager.set(key_for_cookie, json.dumps(key_data), key="cookie", expires_at=None)
-            # Create anonymous user in database
+            
+            # Create anonymous user in database first
             db_manager = DatabaseManager()
             private_key = rsa.PrivateKey.load_pkcs1(key_data["private_key"].encode("utf-8"))
             public_key = rsa.PublicKey(n=private_key.n,e=private_key.e)
             public_key = public_key.save_pkcs1().decode("utf-8")
             db_manager.create_anonymous_user(user_id,public_key,display_name)
-            # Set flags and trigger rerun
-            st.session_state["identity_created"] = True
-            st.session_state["login_button_disabled"] = True
+            
+            # Set the cookie before any state changes or reruns
+            cookie_manager.set(key_for_cookie, json.dumps(key_data), key="cookie", expires_at=None)
+            
+            # Show the key data
+            st.json(key_data)
+            st.success("Identity created successfully! You will be redirected in a moment...")
+            
+            # Trigger single rerun after everything is complete
+            time.sleep(2)  # Give user time to see the success message
             st.rerun()
         else:
-            st.error("Please enter both username and display name")
+            st.error("Please enter a display name")
 
 def main():
     # Initialize database watcher once
@@ -173,10 +168,6 @@ def main():
         st.session_state["show_canvas"] = False
     if "identity_utils" not in st.session_state:
         st.session_state["identity_utils"] = IdentityUtils()
-    if "identity_created" not in st.session_state:
-        st.session_state["identity_created"] = False
-    if "identity_key_data" not in st.session_state:
-        st.session_state["identity_key_data"] = None
     if "login_button_disabled" not in st.session_state:
         st.session_state["login_button_disabled"] = False
 
