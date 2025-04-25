@@ -19,6 +19,7 @@ from streamlit_drawable_canvas import st_canvas
 from classes import Session
 from identity_utils import IdentityUtils
 from dotenv import load_dotenv
+import random
 from utils.db_manager import DatabaseManager
 from utils.db_watcher import setup_db_watcher
 import extra_streamlit_components as stx
@@ -178,6 +179,36 @@ def show_identity_creation():
         else:
             st.error("Please enter a display name")
 
+def clean_duplicate_objects(session_id: str):
+    """
+    Remove duplicate objects from the database based on path data.
+    This helps clean up objects that have been duplicated due to transform operations.
+    """
+    db_manager = DatabaseManager()
+    db_objects = db_manager.get_session_canvas_objects(session_id)
+    
+    # Group objects by their path data
+    path_groups = {}
+    for db_obj in db_objects:
+        obj_data = json.loads(db_obj.object_data)
+        if obj_data.get("type") == "path" and "path" in obj_data:
+            path_key = json.dumps(obj_data.get("path"))
+            if path_key not in path_groups:
+                path_groups[path_key] = []
+            path_groups[path_key].append(db_obj)
+    
+    # For each group of objects with the same path, keep only the one with the highest version
+    for path_key, objs in path_groups.items():
+        if len(objs) > 1:
+            # Sort by version (descending)
+            sorted_objs = sorted(objs, key=lambda x: x.version, reverse=True)
+            # Keep the highest version, delete the rest
+            for obj_to_delete in sorted_objs[1:]:
+                db_manager.delete_canvas_object(obj_to_delete.id, obj_to_delete.version + 1)
+    
+    # Refresh canvas objects in session state
+    st.session_state["canvas_objects"] = db_manager.get_session_canvas_objects(session_id)
+
 def process_canvas_changes(canvas_result, session_id: str, user_id: str):
     """
     Process changes in canvas objects and update the database accordingly.
@@ -193,7 +224,21 @@ def process_canvas_changes(canvas_result, session_id: str, user_id: str):
     current_dict = {obj.get("id", str(i)): obj for i, obj in enumerate(current_objects)}
     previous_dict = {obj.get("id", str(i)): obj for i, obj in enumerate(previous_objects)}
     
+    # Create path-based lookup for database objects
+    path_to_db_obj = {}
+    for db_obj in st.session_state.get("canvas_objects", []):
+        obj_data = json.loads(db_obj.object_data)
+        if obj_data.get("type") == "path" and "path" in obj_data:
+            # Use path data as a key for lookup
+            path_key = json.dumps(obj_data.get("path"))
+            path_to_db_obj[path_key] = db_obj
+    
     db_manager = DatabaseManager()
+    
+    # Clean up duplicate objects periodically
+    # This helps prevent database bloat from transform operations
+    if random.random() < 0.7:  # 70% chance to run cleanup on each change
+        clean_duplicate_objects(session_id)
     
     # Handle new and modified objects
     for obj_id, obj in current_dict.items():
@@ -209,9 +254,55 @@ def process_canvas_changes(canvas_result, session_id: str, user_id: str):
         else:
             # Modified object - check if content changed
             prev_obj = previous_dict[obj_id]
-            if json.dumps(obj, sort_keys=True) != json.dumps(prev_obj, sort_keys=True):
-                # Get current version and increment
-                current_version = 1  # Default for new objects
+            
+            # Special handling for path objects
+            if obj.get("type") == "path" and prev_obj.get("type") == "path" and "path" in obj and "path" in prev_obj:
+                path_key = json.dumps(obj.get("path"))
+                
+                # If path data is the same but position/size changed, it's a transform operation
+                if obj.get("path") == prev_obj.get("path") and (
+                    obj.get("left") != prev_obj.get("left") or
+                    obj.get("top") != prev_obj.get("top") or
+                    obj.get("width") != prev_obj.get("width") or
+                    obj.get("height") != prev_obj.get("height")
+                ):
+                    # Find the correct database object by path
+                    if path_key in path_to_db_obj:
+                        db_obj = path_to_db_obj[path_key]
+                        db_manager.edit_canvas_object(
+                            db_obj.id,  # Use the database ID
+                            json.dumps(obj),
+                            db_obj.version + 1
+                        )
+                    else:
+                        # Fallback if no matching path found
+                        current_version = 1
+                        for db_obj in st.session_state.get("canvas_objects", []):
+                            if db_obj.id == obj_id:
+                                current_version = db_obj.version
+                                break
+                        
+                        db_manager.edit_canvas_object(
+                            obj_id,
+                            json.dumps(obj),
+                            current_version + 1
+                        )
+                # For other changes to path objects (actual path data changed)
+                elif obj.get("path") != prev_obj.get("path"):
+                    current_version = 1
+                    for db_obj in st.session_state.get("canvas_objects", []):
+                        if db_obj.id == obj_id:
+                            current_version = db_obj.version
+                            break
+                    
+                    db_manager.edit_canvas_object(
+                        obj_id,
+                        json.dumps(obj),
+                        current_version + 1
+                    )
+            # For non-path objects, use the existing comparison logic
+            elif json.dumps(obj, sort_keys=True) != json.dumps(prev_obj, sort_keys=True):
+                current_version = 1
                 for db_obj in st.session_state.get("canvas_objects", []):
                     if db_obj.id == obj_id:
                         current_version = db_obj.version
@@ -299,7 +390,7 @@ def full_app():
     # Specify canvas parameters in application
     drawing_mode = st.sidebar.selectbox(
         "Drawing tool:",
-        ("freedraw", "line", "rect", "circle", "transform", "polygon", "point"),
+        ("freedraw", "line", "rect", "circle", "polygon", "point"),
     )
     stroke_width = st.sidebar.slider("Stroke width: ", 1, 25, 3)
     if drawing_mode == "point":
@@ -320,7 +411,7 @@ def full_app():
         width=1000,
         drawing_mode=drawing_mode,
         point_display_radius=point_display_radius if drawing_mode == "point" else 0,
-        display_toolbar=st.sidebar.checkbox("Display toolbar", True),
+        display_toolbar=False,
         key="canvas_app",
         initial_drawing=st.session_state.get("canvas_drawing_state", {"objects": []})
     )
