@@ -1,5 +1,6 @@
 import sys
 from pathlib import Path
+from typing import List
 # Add the project root directory to Python path
 sys.path.append(str(Path(__file__).parent.parent))
 
@@ -12,6 +13,7 @@ import uuid
 from io import BytesIO
 from PIL import Image
 import numpy as np
+from classes import User
 import requests
 import pandas as pd
 import streamlit as st
@@ -129,6 +131,7 @@ def show_session_list():
             print(participants)
 
             for participant in participants:
+                session.participants.append(participant)
                 st.text(f"  • {participant.display_name}")
             if st.button("Join Session", key=session.id):
                 st.session_state["selected_session"] = session
@@ -366,15 +369,41 @@ def main():
             # Add connection status at top of sidebar
             col1, col2 = st.columns([1, 4])
             with col1:
-                st.markdown("🔴")  # Red circle for disconnected
+                if st.session_state["identity_utils"].has_identity:
+                    st.markdown("🟢")
+                else:
+                    st.markdown("🔴")
             with col2:
                 if st.session_state["identity_utils"].user_id:
                     st.write(f"User: {st.session_state['identity_utils'].user_id}")
                 else:
                     st.write("Not connected")
             st.markdown("---")
+#Create a modal called invite_participants
+@st.dialog("Invite Participants")
+def invite_participants(session_id:str,participants:List[User]):
+    db_manager = DatabaseManager()
+    participant_ids = [p.id for p in participants]
+    users = db_manager.get_all_users()
+    st.write("Invite users to join the session.")
+    # Placeholder for user selection (non-functional for now)
+    selected_users = st.multiselect(
+        "Select Users to Invite",
+        options=[f"{u.id}:{u.display_name}" for u in users if u.id not in participant_ids ],
+        default=[]
+    )
+    
+    if st.button("Send Invites"):
+        if selected_users:
+            ids = [u.split(":")[0] for u in selected_users]
+            names = [u.split(":")[1] for u in selected_users]
+            result = db_manager.add_new_participants(session_id,user_ids=ids)
+            print(result)
+            st.success(f"Invites sent to: {', '.join(names)}")
+        else:
+            st.error("Please select at least one user to invite.")
 
-
+#Canvas handling functionality
 def full_app():
     # Get current user and session info
     user_id = st.session_state["identity_utils"].user_id
@@ -396,16 +425,22 @@ def full_app():
     if drawing_mode == "point":
         point_display_radius = st.sidebar.slider("Point display radius: ", 1, 25, 3)
     stroke_color = st.sidebar.color_picker("Stroke color hex: ")
-    bg_color = st.sidebar.color_picker("Background color hex: ", "#eee")
-    bg_image = st.sidebar.file_uploader("Background image:", type=["png", "jpg"])
+    st.sidebar.markdown("### List of Participants")
+    for p in st.session_state["selected_session"].participants:
+        classify_p: User = p
+        with st.sidebar.expander(f"User: {classify_p.display_name}"):
+            st.text(f"User ID: {classify_p.id}")
+            st.text(f"Created At: {classify_p.created_at}")
+    new_participant_modal = st.sidebar.button("Invite Participants")
+    if new_participant_modal:
+        invite_participants(session_id,st.session_state["selected_session"].participants)
 
     # Create a canvas component
     canvas_result = st_canvas(
         fill_color="rgba(255, 165, 0, 0.3)",  # Fixed fill color with some opacity
         stroke_width=stroke_width,
         stroke_color=stroke_color,
-        background_color=bg_color,
-        background_image=Image.open(bg_image) if bg_image else None,
+        background_color="#eee",
         update_streamlit=True,
         height=1000,
         width=1000,

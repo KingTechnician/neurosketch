@@ -138,6 +138,24 @@ class DatabaseManager:
             cursor.execute(query, (user_id,))
             row = cursor.fetchone()
             return User.from_db_row(tuple(row)) if row else None
+        
+    def get_all_users(self) -> List[User]:
+        query = "SELECT * FROM users"
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(query)
+            return [User.from_db_row(tuple(row)) for row in cursor.fetchall()]
+
+
+    def add_new_participants(self,session_id:str, user_ids:List[str]) -> bool:
+        """Add new participants to a session."""
+        query = """
+        INSERT INTO session_participants (id, user_id)
+        VALUES (?, ?)
+        """
+        for user_id in user_ids:
+            self._execute_with_retry(query, (session_id, user_id), is_write=True)
+        return True
 
     def get_user_by_client_id(self, client_id: str) -> Optional[User]:
         """Retrieve a user by their client identifier."""
