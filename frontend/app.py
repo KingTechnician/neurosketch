@@ -379,7 +379,20 @@ def main():
                 else:
                     st.write("Not connected")
             st.markdown("---")
-#Create a modal called invite_participants
+
+
+@st.dialog("Clear Canvas")
+def clear_canvas(session_id:str):
+    db_manager = DatabaseManager()
+    st.write("Are you sure you want to clear the canvas? This action cannot be undone and will clear the entire canvas for all participants.")
+    if st.button("Clear Canvas",key="clear_canvas_button"):
+        # Clear all objects in the session
+        db_manager.clear_canvas(session_id)
+        st.success("Canvas cleared successfully!")
+        #Refresh canvas objects in session state
+        st.session_state["canvas_objects"] = db_manager.get_session_canvas_objects(session_id)
+        st.session_state["canvas_drawing_state"] = convert_db_objects_to_canvas_format(st.session_state["canvas_objects"])
+
 @st.dialog("Invite Participants")
 def invite_participants(session_id:str,participants:List[User]):
     db_manager = DatabaseManager()
@@ -434,6 +447,9 @@ def full_app():
     new_participant_modal = st.sidebar.button("Invite Participants")
     if new_participant_modal:
         invite_participants(session_id,st.session_state["selected_session"].participants)
+
+    if st.sidebar.button("Clear Canvas"):
+        clear_canvas(session_id)
 
     # Create a canvas component
     canvas_result = st_canvas(

@@ -271,6 +271,12 @@ class DatabaseManager:
             cursor = conn.cursor()
             cursor.execute(query, (user_id,))
             return [Session.from_db_row(tuple(row)) for row in cursor.fetchall()]
+        
+    def clear_canvas(self,session_id:str) -> bool:
+        """Clear all canvas objects from a session."""
+        query = "DELETE FROM canvas_objects WHERE session_id = ?"
+        cursor = self._execute_with_retry(query, (session_id,), is_write=True)
+        return cursor.rowcount > 0
 
     def add_canvas_object(self, canvas_object: dict) -> bool:
         """
