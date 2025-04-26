@@ -138,6 +138,17 @@ def on_db_change():
         # Force a rerun to refresh the UI
         st.rerun()
 
+def reset_canvas_state():
+    """Reset all canvas-related session state variables"""
+    # Clear canvas objects and drawing state
+    st.session_state["canvas_objects"] = []
+    st.session_state["canvas_drawing_state"] = {"objects": []}
+    st.session_state["previous_canvas_state"] = []
+    
+    # Reset change tracking
+    st.session_state["has_unsaved_changes"] = False
+    st.session_state["pending_changes"] = {"new": [], "modified": [], "deleted": []}
+
 def initialize_db_watcher():
     """Initialize the database watcher and canvas objects state."""
     #if "db_watcher" not in st.session_state:
@@ -205,12 +216,13 @@ def show_session_list():
                 session.participants.append(participant)
                 st.text(f"  • {participant.display_name}")
             if st.button("Join Session", key=session.id):
+                # First, reset any existing canvas state
+                reset_canvas_state()
+                refresh_canvas_data(session.id)
+                
+                # Then set the new session
                 st.session_state["selected_session"] = session
                 st.session_state["show_canvas"] = True
-                
-                # Initialize session state for tracking changes
-                st.session_state["has_unsaved_changes"] = False
-                st.session_state["pending_changes"] = {"new": [], "modified": [], "deleted": []}
                 
                 st.rerun()
 
