@@ -9,9 +9,23 @@ cursor.execute('''
 CREATE TABLE sessions(
     id TEXT PRIMARY KEY,
     title VARCHAR(255) NOT NULL,
-    canvas TEXT,
+    height INTEGER NOT NULL,
+    width INTEGER NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+)''')
+
+cursor.execute('''
+CREATE TABLE canvas_objects(
+    id TEXT PRIMARY KEY,
+    session_id TEXT NOT NULL,
+    object_data TEXT NOT NULL,
+    created_by TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    version INTEGER DEFAULT 1,
+    FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE,
+    FOREIGN KEY (created_by) REFERENCES users(id)
 )''')
 
 # Create session_participants table

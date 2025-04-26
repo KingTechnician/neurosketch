@@ -2,22 +2,36 @@ import os
 import sqlite3
 import uuid
 import rsa
-import threading
 from typing import List, Optional
 from contextlib import contextmanager
 from datetime import datetime
 import time
+from threading import Lock
+from .classes import CanvasObjectDB
 from dotenv import load_dotenv
 
 from .classes import Session, User, SessionParticipant
-from utils.db_watcher import setup_db_watcher
 
 
 
 
 
 class DatabaseManager:
+    _instance = None
+    _lock = Lock()  # Thread safety for singleton creation
+    
+    def __new__(cls):
+        with cls._lock:
+            if cls._instance is None:
+                cls._instance = super(DatabaseManager, cls).__new__(cls)
+                cls._instance._initialized = False
+            return cls._instance
+    
     def __init__(self):
+        # Skip initialization if already initialized
+        if getattr(self, '_initialized', False):
+            return
+            
         load_dotenv()
         self.db_path = os.getenv('PATH_TO_DB')
         if not self.db_path:
@@ -27,53 +41,13 @@ class DatabaseManager:
         with self._get_connection() as conn:
             conn.execute('PRAGMA journal_mode=WAL')
         
-        # Initialize the reader-writer lock
-        self.rw_lock = threading.RLock()  # Reentrant lock for write operations
-        self.reader_count = 0  # Counter for active readers
-        self.reader_count_lock = threading.Lock()  # Lock to protect reader count
-        
-        # Set up database file watcher
-        self._setup_file_watcher()
+        # Mark as initialized
+        self._initialized = True
     
-    def _setup_file_watcher(self):
-        """Set up a watcher for database file changes."""
-        def on_db_change():
-            # Create new lock instances and reset state
-            self.rw_lock = threading.RLock()
-            self.reader_count = 0
-            self.reader_count_lock = threading.Lock()
-            
-        self.observer = setup_db_watcher(on_db_change)
-
-    @contextmanager
-    def read_lock(self):
-        """Acquire a shared read lock."""
-        try:
-            # Increment reader count safely
-            with self.reader_count_lock:
-                self.reader_count += 1
-                if self.reader_count == 1:
-                    # First reader acquires the lock
-                    self.rw_lock.acquire()
-            yield
-        finally:
-            # Decrement reader count safely
-            with self.reader_count_lock:
-                self.reader_count -= 1
-                if self.reader_count == 0:
-                    # Last reader releases the lock
-                    self.rw_lock.release()
-
-    @contextmanager
-    def write_lock(self):
-        """Acquire an exclusive write lock."""
-        try:
-            # Acquire the lock for exclusive access
-            self.rw_lock.acquire()
-            yield
-        finally:
-            # Release the lock
-            self.rw_lock.release()
+    def cleanup(self):
+        """Cleanup resources when the application is shutting down."""
+        # Nothing to clean up since connections are closed by the context manager
+        pass
 
     @contextmanager
     def _get_connection(self):
@@ -89,22 +63,19 @@ class DatabaseManager:
 
     def _execute_with_retry(self, query: str, params: tuple = None, max_retries: int = 3, is_write: bool = True) -> sqlite3.Cursor:
         """Execute a query with retry logic for handling concurrent access."""
-        # Choose the appropriate lock based on whether this is a read or write operation
-        lock_ctx = self.write_lock() if is_write else self.read_lock()
-        
+        # No locks needed, just retry on database locked errors
         retry_count = 0
         while retry_count < max_retries:
             try:
-                with lock_ctx:
-                    with self._get_connection() as conn:
-                        cursor = conn.cursor()
-                        if params:
-                            cursor.execute(query, params)
-                        else:
-                            cursor.execute(query)
-                        if is_write:
-                            conn.commit()
-                        return cursor
+                with self._get_connection() as conn:
+                    cursor = conn.cursor()
+                    if params:
+                        cursor.execute(query, params)
+                    else:
+                        cursor.execute(query)
+                    if is_write:
+                        conn.commit()
+                    return cursor
             except sqlite3.OperationalError as e:
                 if "database is locked" in str(e) and retry_count < max_retries - 1:
                     retry_count += 1
@@ -118,10 +89,10 @@ class DatabaseManager:
     def create_session(self, session: Session) -> bool:
         """Create a new session in the database."""
         query = """
-        INSERT INTO sessions (id, title, canvas)
-        VALUES (?, ?, ?)
+        INSERT INTO sessions (id,title,height,width)
+        VALUES (?, ?,?,?)
         """
-        cursor = self._execute_with_retry(query, (session.id, session.title, session.canvas), is_write=True)
+        cursor = self._execute_with_retry(query, (session.id, session.title, session.height,session.width), is_write=True)
 
         participant_query = """
         INSERT INTO session_participants (id, user_id)
@@ -134,12 +105,11 @@ class DatabaseManager:
     def get_session(self, session_id: str) -> Optional[Session]:
         """Retrieve a session by its ID."""
         query = "SELECT * FROM sessions WHERE id = ?"
-        with self.read_lock():
-            with self._get_connection() as conn:
-                cursor = conn.cursor()
-                cursor.execute(query, (session_id,))
-                row = cursor.fetchone()
-                return Session.from_db_row(tuple(row)) if row else None
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(query, (session_id,))
+            row = cursor.fetchone()
+            return Session.from_db_row(tuple(row)) if row else None
 
     def update_session(self, session: Session) -> bool:
         """Update an existing session."""
@@ -174,22 +144,38 @@ class DatabaseManager:
     def get_user(self, user_id: str) -> Optional[User]:
         """Retrieve a user by their ID."""
         query = "SELECT * FROM users WHERE id = ?"
-        with self.read_lock():
-            with self._get_connection() as conn:
-                cursor = conn.cursor()
-                cursor.execute(query, (user_id,))
-                row = cursor.fetchone()
-                return User.from_db_row(tuple(row)) if row else None
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(query, (user_id,))
+            row = cursor.fetchone()
+            return User.from_db_row(tuple(row)) if row else None
+        
+    def get_all_users(self) -> List[User]:
+        query = "SELECT * FROM users"
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(query)
+            return [User.from_db_row(tuple(row)) for row in cursor.fetchall()]
+
+
+    def add_new_participants(self,session_id:str, user_ids:List[str]) -> bool:
+        """Add new participants to a session."""
+        query = """
+        INSERT INTO session_participants (id, user_id)
+        VALUES (?, ?)
+        """
+        for user_id in user_ids:
+            self._execute_with_retry(query, (session_id, user_id), is_write=True)
+        return True
 
     def get_user_by_client_id(self, client_id: str) -> Optional[User]:
         """Retrieve a user by their client identifier."""
         query = "SELECT * FROM users WHERE client_identifier = ?"
-        with self.read_lock():
-            with self._get_connection() as conn:
-                cursor = conn.cursor()
-                cursor.execute(query, (client_id,))
-                row = cursor.fetchone()
-                return User.from_db_row(tuple(row)) if row else None
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(query, (client_id,))
+            row = cursor.fetchone()
+            return User.from_db_row(tuple(row)) if row else None
 
     def create_anonymous_user(self, user_id:str,public_key:str, display_name: str) -> User:
         """Create an anonymous user with a random UUID and RSA key pair."""
@@ -280,11 +266,10 @@ class DatabaseManager:
         JOIN session_participants sp ON u.id = sp.user_id
         WHERE sp.id = ?
         """
-        with self.read_lock():
-            with self._get_connection() as conn:
-                cursor = conn.cursor()
-                cursor.execute(query, (session_id,))
-                return [User.from_db_row(tuple(row)) for row in cursor.fetchall()]
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(query, (session_id,))
+            return [User.from_db_row(tuple(row)) for row in cursor.fetchall()]
 
     def get_user_sessions(self, user_id: str) -> List[Session]:
         """Get all sessions a user is participating in."""
@@ -293,8 +278,131 @@ class DatabaseManager:
         JOIN session_participants sp ON s.id = sp.id
         WHERE sp.user_id = ?
         """
-        with self.read_lock():
-            with self._get_connection() as conn:
-                cursor = conn.cursor()
-                cursor.execute(query, (user_id,))
-                return [Session.from_db_row(tuple(row)) for row in cursor.fetchall()]
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(query, (user_id,))
+            return [Session.from_db_row(tuple(row)) for row in cursor.fetchall()]
+        
+    def clear_canvas(self,session_id:str) -> bool:
+        """Clear all canvas objects from a session."""
+        query = "DELETE FROM canvas_objects WHERE session_id = ?"
+        cursor = self._execute_with_retry(query, (session_id,), is_write=True)
+        return cursor.rowcount > 0
+
+    def add_canvas_object(self, canvas_object: dict) -> bool:
+        """
+        Add a new canvas object to a session.
+        Always allowed as they're new objects.
+        
+        Args:
+            canvas_object (dict): Dictionary containing:
+                - id: Unique identifier for the object
+                - session_id: ID of the session this object belongs to
+                - object_data: JSON string of the object data
+                - created_by: ID of the user creating the object
+        
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        query = """
+        INSERT INTO canvas_objects (id, session_id, object_data, created_by)
+        VALUES (?, ?, ?, ?)
+        """
+        cursor = self._execute_with_retry(
+            query,
+            (canvas_object['id'], canvas_object['session_id'], 
+             canvas_object['object_data'], canvas_object['created_by']),
+            is_write=True
+        )
+        return cursor.rowcount > 0
+
+    def edit_canvas_object(self, object_id: str, object_data: str, new_version: int) -> bool:
+        """
+        Edit an existing canvas object.
+        Only proceeds if the new version is greater than the current version.
+        
+        Args:
+            object_id (str): ID of the object to edit
+            object_data (str): New JSON string of object data
+            new_version (int): New version number
+            
+        Returns:
+            bool: True if edit was successful, False if version check failed or object not found
+        """
+        # First get current version
+        version_query = "SELECT version FROM canvas_objects WHERE id = ?"
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(version_query, (object_id,))
+            result = cursor.fetchone()
+            if not result:
+                return False
+            current_version = result[0]
+            
+            # Only proceed if new version is greater
+            if new_version <= current_version:
+                return False
+        
+        # Update the object
+        update_query = """
+        UPDATE canvas_objects 
+        SET object_data = ?, version = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+        """
+        cursor = self._execute_with_retry(
+            update_query,
+            (object_data, new_version, object_id),
+            is_write=True
+        )
+        return cursor.rowcount > 0
+
+    def delete_canvas_object(self, object_id: str, version: int) -> bool:
+        """
+        Delete a canvas object.
+        Only proceeds if the provided version is greater than the current version.
+        
+        Args:
+            object_id (str): ID of the object to delete
+            version (int): Version number for verification
+            
+        Returns:
+            bool: True if deletion was successful, False if version check failed or object not found
+        """
+        # First get current version
+        version_query = "SELECT version FROM canvas_objects WHERE id = ?"
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(version_query, (object_id,))
+            result = cursor.fetchone()
+            if not result:
+                return False
+            current_version = result[0]
+            
+            # Only proceed if provided version is greater
+            if version <= current_version:
+                return False
+        
+        # Delete the object
+        delete_query = "DELETE FROM canvas_objects WHERE id = ?"
+        cursor = self._execute_with_retry(
+            delete_query,
+            (object_id,),
+            is_write=True
+        )
+        return cursor.rowcount > 0
+
+    def get_session_canvas_objects(self, session_id: str) -> List[CanvasObjectDB]:
+        """
+        Get all canvas objects for a specific session.
+        
+        Args:
+            session_id (str): ID of the session to get objects for
+            
+        Returns:
+            List[CanvasObjectDB]: List of canvas objects in the session
+        """
+        query = "SELECT * FROM canvas_objects WHERE session_id = ?"
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(query, (session_id,))
+            return [CanvasObjectDB.from_db_row(tuple(row)) for row in cursor.fetchall()]

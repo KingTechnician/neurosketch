@@ -7,7 +7,6 @@ import uuid
 class Session:
     id: str
     title: str
-    canvas: Optional[str] = None
     width: int = 800
     height: int = 600
     created_at: Optional[datetime] = None
@@ -25,12 +24,10 @@ class Session:
         return cls(
             id=row[0],
             title=row[1],
-            canvas=row[2],
-            width=row[3],
-            height=row[4],
-            participants=row[5].split(',') if row[5] else [],
-            created_at=datetime.fromisoformat(row[6]) if row[6] else None,
-            updated_at=datetime.fromisoformat(row[7]) if row[7] else None
+            width=row[2],
+            height=row[3],
+            created_at=datetime.fromisoformat(row[4]) if row[4] else None,
+            updated_at=datetime.fromisoformat(row[5]) if row[5] else None
         )
 
 @dataclass
@@ -63,6 +60,33 @@ class SessionParticipant:
         return cls(
             session_id=row[0],
             user_id=row[1]
+        )
+
+
+
+@dataclass
+class CanvasObjectDB:
+    id: str
+    session_id: str
+    object_data: str  # JSON string
+    created_by: str
+    version: int = 1
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+    
+    
+    @classmethod
+    def from_db_row(cls, row: tuple) -> 'CanvasObjectDB':
+        """Create a CanvasObject instance from a database row."""
+        return cls(
+            id=row[0],
+            session_id=row[1],
+            object_data=row[2],
+            created_by=row[3],
+            created_at=datetime.fromisoformat(row[4]) if row[4] else None,
+            updated_at=datetime.fromisoformat(row[5]) if row[5] else None,
+            version=row[6] if row[6] else 1,
+            
         )
 
 # Sample sessions for testing
