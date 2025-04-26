@@ -19,6 +19,7 @@ router = APIRouter()
 
 @router.post("/generate", response_model=GenerateResponse)
 async def generate(request: GenerateRequest,authorization:str = Header(None)) -> GenerateResponse:
+async def generate(request: GenerateRequest,authorization:str = Header(None)) -> GenerateResponse:
     print(request)
     print("Authorization Header:", authorization)
     #Split Bearer out of signature
@@ -122,3 +123,4 @@ async def generate(request: GenerateRequest,authorization:str = Header(None)) ->
         message="Generation successful",
         data={},
     )
+

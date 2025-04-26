@@ -40,7 +40,17 @@ class IdentityUtils:
                 return False
                 
             # Load the private key
+                
+            # Load the private key
             private_key = rsa.PrivateKey.load_pkcs1(self.private_key.encode())
+            
+            # Verify identity using challenge-response
+            db = DatabaseManager()
+            is_verified = db.verify_user_identity(self.user_id, private_key)
+            return is_verified
+            
+        except (json.JSONDecodeError, ValueError, TypeError) as e:
+            print(f"Error checking identity: {str(e)}")
             
             # Verify identity using challenge-response
             db = DatabaseManager()

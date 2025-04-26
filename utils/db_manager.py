@@ -13,6 +13,9 @@ from dotenv import load_dotenv
 from .classes import Session, User, SessionParticipant
 
 
+
+
+
 class DatabaseManager:
     _instance = None
     _lock = Lock()  # Thread safety for singleton creation
