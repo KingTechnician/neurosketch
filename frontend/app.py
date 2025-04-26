@@ -32,8 +32,6 @@ st.set_page_config(
     )
 
 
-print(st.session_state)
-
 
 
 
@@ -132,7 +130,6 @@ def show_identity_creation():
     
     # Show success message if identity was just created
     if st.session_state.get("identity_created", False):
-        st.success("🔑 Identity created! Important: Never delete your key file (user_identity.json) or you will lose access to your account.")
         if st.session_state.get("identity_key_data"):
             st.json(st.session_state["identity_key_data"])
             # Set cookie after showing messages
@@ -150,7 +147,10 @@ def show_identity_creation():
             cookie_manager.set(key_for_cookie, json.dumps(key_data), key="cookie", expires_at=None)
             # Create anonymous user in database
             db_manager = DatabaseManager()
-            db_manager.create_anonymous_user(user_id,display_name)
+            private_key = rsa.PrivateKey.load_pkcs1(key_data["private_key"].encode("utf-8"))
+            public_key = rsa.PublicKey(n=private_key.n,e=private_key.e)
+            public_key = public_key.save_pkcs1().decode("utf-8")
+            db_manager.create_anonymous_user(user_id,public_key,display_name)
             # Set flags and trigger rerun
             st.session_state["identity_created"] = True
             st.session_state["login_button_disabled"] = True

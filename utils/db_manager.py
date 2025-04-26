@@ -191,15 +191,12 @@ class DatabaseManager:
                 row = cursor.fetchone()
                 return User.from_db_row(tuple(row)) if row else None
 
-    def create_anonymous_user(self, user_id:str, display_name: str) -> User:
+    def create_anonymous_user(self, user_id:str,public_key:str, display_name: str) -> User:
         """Create an anonymous user with a random UUID and RSA key pair."""
         # Generate UUIDs for both id and client_identifier
         client_id = str(uuid.uuid4())
         
-        # Generate RSA key pair
-        (pubkey, _) = rsa.newkeys(2048)
-        public_key = pubkey.save_pkcs1().decode()
-        
+        print("Public key:", public_key)
         # Create and store user
         user = User(
             id=user_id,
@@ -210,24 +207,43 @@ class DatabaseManager:
         self.create_user(user)
         return user
 
-    def verify_user_identity(self, client_id: str, challenge_response: bytes, private_key: rsa.PrivateKey) -> bool:
+    def verify_user_identity(self, user_id: str, private_key: rsa.PrivateKey) -> bool:
         """
         Verify user identity using RSA challenge-response.
+        Generates a challenge internally and verifies it using the stored public key.
         Returns True if verification succeeds, False otherwise.
         """
-        user = self.get_user_by_client_id(client_id)
+        print("Verifying identity of:", user_id)
+        user = self.get_user(user_id)
+        print(user)
         if not user:
             return False
             
         try:
-            # Create a challenge using stored public key
+            # Create a challenge message
+            challenge = os.urandom(32)  # 256-bit random challenge
+            print("Generated challenge:", challenge)
+            
+            # Load the stored public key
             public_key = rsa.PublicKey.load_pkcs1(user.public_key.encode())
-            # Decrypt response with private key and verify it matches
-            decrypted = rsa.decrypt(challenge_response, private_key)
-            # Encrypt with public key and compare
-            encrypted = rsa.encrypt(decrypted, public_key)
-            return encrypted == challenge_response
-        except:
+            
+            # Create challenge response by encrypting with public key
+            challenge_response = rsa.encrypt(challenge, public_key)
+
+            print("Encrypted challenge response:", challenge_response)
+            
+            # Verify by decrypting with private key
+            try:
+                decrypted = rsa.decrypt(challenge_response, private_key)
+                print("Decrypted challenge:", decrypted)
+                print("Original challenge:", challenge)
+                return decrypted == challenge
+            except rsa.pkcs1.DecryptionError as e:
+                print("Decryption failed:", str(e))
+                return False
+                
+        except Exception as e:
+            print(f"Error in verify_user_identity: {str(e)}")
             return False
 
     # Participant Operations
