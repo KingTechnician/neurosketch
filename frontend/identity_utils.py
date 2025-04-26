@@ -1,6 +1,8 @@
 from pathlib import Path
 import rsa
 import json
+import time
+import streamlit as st
 import extra_streamlit_components as stx
 from extra_streamlit_components import CookieManager
 from utils.db_manager import DatabaseManager
@@ -10,13 +12,26 @@ class IdentityUtils:
         if not key_json:
             self.has_identity = False
             return
-        print("Initializing IdentityUtils")
-        print(type(key_json))
+        
         self.key_file = Path("user_identity.json")
         self.user_id = key_json.get("user_id", None)
         self.private_key = key_json.get("private_key", None)
-        print("Checking if this is running")
-        self.has_identity = self._check_identity()
+        
+        # Check if we need to verify identity based on timestamp
+        current_time = time.time()
+        last_verified = st.session_state.get("last_identity_verification", 0)
+        verification_interval = 5  # seconds
+        
+        if current_time - last_verified >= verification_interval:
+            print(f"Verifying identity (last verified {current_time - last_verified:.1f}s ago)")
+            self.has_identity = self._check_identity()
+            # Store the verification result and timestamp
+            st.session_state["identity_verified"] = self.has_identity
+            st.session_state["last_identity_verification"] = current_time
+        else:
+            # Use the cached verification result
+            self.has_identity = st.session_state.get("identity_verified", False)
+            print(f"Using cached identity verification (verified {current_time - last_verified:.1f}s ago)")
     
     def _check_identity(self) -> bool:
         print("Checking identity of", self.user_id) 

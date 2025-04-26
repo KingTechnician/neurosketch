@@ -11,10 +11,9 @@ from utils.db_manager import DatabaseManager
 
 import os
 
-anthropic_key = os.getenv("ANTHROPIC_API_KEY")
+# Load environment variables at module level
 load_dotenv()  # Load environment variables from .env file
-
-
+anthropic_key = os.getenv("ANTHROPIC_API_KEY")
 
 router = APIRouter()
 
@@ -25,7 +24,8 @@ async def generate(request: GenerateRequest,authorization:str = Header(None)) ->
     #Split Bearer out of signature
     auth_signature = authorization.split(" ")[1]
 
-    db=DatabaseManager()
+    # Use the singleton instance of DatabaseManager
+    db = DatabaseManager()
     user = db.get_user(request.user_id)
     session = db.get_session(request.session_id)
     session_objects =[json.loads(d.object_data) for d in db.get_session_canvas_objects(request.session_id)]

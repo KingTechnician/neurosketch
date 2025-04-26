@@ -6,18 +6,29 @@ from typing import List, Optional
 from contextlib import contextmanager
 from datetime import datetime
 import time
+from threading import Lock
 from .classes import CanvasObjectDB
 from dotenv import load_dotenv
 
 from .classes import Session, User, SessionParticipant
-from utils.db_watcher import setup_db_watcher
-
-
-
 
 
 class DatabaseManager:
+    _instance = None
+    _lock = Lock()  # Thread safety for singleton creation
+    
+    def __new__(cls):
+        with cls._lock:
+            if cls._instance is None:
+                cls._instance = super(DatabaseManager, cls).__new__(cls)
+                cls._instance._initialized = False
+            return cls._instance
+    
     def __init__(self):
+        # Skip initialization if already initialized
+        if getattr(self, '_initialized', False):
+            return
+            
         load_dotenv()
         self.db_path = os.getenv('PATH_TO_DB')
         if not self.db_path:
@@ -27,16 +38,13 @@ class DatabaseManager:
         with self._get_connection() as conn:
             conn.execute('PRAGMA journal_mode=WAL')
         
-        # Set up database file watcher
-        self._setup_file_watcher()
+        # Mark as initialized
+        self._initialized = True
     
-    def _setup_file_watcher(self):
-        """Set up a watcher for database file changes."""
-        def on_db_change():
-            # No need to reset locks as they've been removed
-            pass
-            
-        self.observer = setup_db_watcher(on_db_change)
+    def cleanup(self):
+        """Cleanup resources when the application is shutting down."""
+        # Nothing to clean up since connections are closed by the context manager
+        pass
 
     @contextmanager
     def _get_connection(self):

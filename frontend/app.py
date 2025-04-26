@@ -10,6 +10,8 @@ import os
 import re
 import time
 import uuid
+import atexit
+import threading
 from io import BytesIO
 from PIL import Image
 import numpy as np
@@ -28,7 +30,79 @@ import extra_streamlit_components as stx
 import rsa
 
 
+# Helper functions for canvas operations
+def save_canvas_changes(session_id, user_id):
+    """Save pending changes to the database"""
+    if "pending_changes" not in st.session_state:
+        return
+        
+    # Process new objects
+    for obj in st.session_state["pending_changes"].get("new", []):
+        canvas_obj = {
+            "id": str(uuid.uuid4()),
+            "session_id": session_id,
+            "object_data": json.dumps(obj),
+            "created_by": user_id
+        }
+        db_manager.add_canvas_object(canvas_obj)
+    
+    # Process modified objects
+    for obj_data in st.session_state["pending_changes"].get("modified", []):
+        obj_id = obj_data["id"]
+        obj = obj_data["object"]
+        current_version = obj_data["version"]
+        db_manager.edit_canvas_object(
+            obj_id,
+            json.dumps(obj),
+            current_version + 1
+        )
+    
+    # Process deleted objects
+    for obj_data in st.session_state["pending_changes"].get("deleted", []):
+        obj_id = obj_data["id"]
+        current_version = obj_data["version"]
+        db_manager.delete_canvas_object(obj_id, current_version + 1)
+    
+    # Clear pending changes
+    st.session_state["pending_changes"] = {"new": [], "modified": [], "deleted": []}
+    st.session_state["has_unsaved_changes"] = False
+
+@st.dialog("Confirm Refresh")
+def confirm_blank_canvas_refresh():
+    """Dialog to confirm refreshing when canvas is blank in database"""
+    st.write("The canvas has been cleared by another user. Your unsaved changes will be lost if you refresh.")
+    if st.button("Refresh Anyway", key="confirm_refresh_button"):
+        # Get the stored data
+        db_objects = st.session_state.get("temp_refresh_data", {}).get("db_objects", [])
+        
+        # Update session state with fresh data
+        st.session_state["canvas_objects"] = db_objects
+        st.session_state["canvas_drawing_state"] = convert_db_objects_to_canvas_format(db_objects)
+        
+        # Clear pending changes
+        st.session_state["pending_changes"] = {"new": [], "modified": [], "deleted": []}
+        st.session_state["has_unsaved_changes"] = False
+        
+        st.success("Canvas refreshed with latest changes (blank canvas)")
+        return True
+    return False
+
+def refresh_canvas_data(session_id):
+    """Refresh canvas data from the database with confirmation if needed"""
+    # First check if the database canvas is empty
+    db_objects = db_manager.get_session_canvas_objects(session_id)
+    
+    # If canvas is empty in database and user has unsaved changes, confirm before proceeding
+   
+    # For normal refresh (non-empty canvas or no unsaved changes)
+    st.session_state["canvas_objects"] = db_objects
+    st.session_state["canvas_drawing_state"] = convert_db_objects_to_canvas_format(db_objects)
+
+
 load_dotenv()
+
+# Get a single instance of DatabaseManager to use throughout the app
+db_manager = DatabaseManager()
 
 
 st.set_page_config(
@@ -59,17 +133,15 @@ def on_db_change():
     """Handle database changes by updating in-memory canvas objects and refreshing the UI."""
     if "selected_session" in st.session_state and st.session_state["selected_session"]:
         session_id = st.session_state["selected_session"].id
-        db_manager = DatabaseManager()
-        latest_objects = db_manager.get_session_canvas_objects(session_id)
-        st.session_state["canvas_objects"] = latest_objects
-        # Convert to canvas format and store for next render
-        st.session_state["canvas_drawing_state"] = convert_db_objects_to_canvas_format(latest_objects)
+        # Only store the IDs in session state, not the full objects
+        st.session_state["canvas_object_ids"] = [obj.id for obj in db_manager.get_session_canvas_objects(session_id)]
+        # Force a rerun to refresh the UI
         st.rerun()
 
 def initialize_db_watcher():
     """Initialize the database watcher and canvas objects state."""
-    if "db_watcher" not in st.session_state:
-        st.session_state["db_watcher"] = setup_db_watcher(on_db_change)
+    #if "db_watcher" not in st.session_state:
+        #st.session_state["db_watcher"] = setup_db_watcher(on_db_change)
     if "canvas_objects" not in st.session_state:
         st.session_state["canvas_objects"] = []
     if "previous_canvas_state" not in st.session_state:
@@ -79,7 +151,6 @@ def initialize_db_watcher():
 def show_session_list():
     st.title("Available Drawing Sessions")
     
-    db_manager = DatabaseManager()
     
     # Add new session expander
     with st.expander("Start a new Session"):
@@ -136,6 +207,11 @@ def show_session_list():
             if st.button("Join Session", key=session.id):
                 st.session_state["selected_session"] = session
                 st.session_state["show_canvas"] = True
+                
+                # Initialize session state for tracking changes
+                st.session_state["has_unsaved_changes"] = False
+                st.session_state["pending_changes"] = {"new": [], "modified": [], "deleted": []}
+                
                 st.rerun()
 
 def create_identity(username: str):
@@ -163,7 +239,6 @@ def show_identity_creation():
             key_data = st.session_state["identity_utils"].create_identity(user_id)
             
             # Create anonymous user in database first
-            db_manager = DatabaseManager()
             private_key = rsa.PrivateKey.load_pkcs1(key_data["private_key"].encode("utf-8"))
             public_key = rsa.PublicKey(n=private_key.n,e=private_key.e)
             public_key = public_key.save_pkcs1().decode("utf-8")
@@ -187,7 +262,6 @@ def clean_duplicate_objects(session_id: str):
     Remove duplicate objects from the database based on path data.
     This helps clean up objects that have been duplicated due to transform operations.
     """
-    db_manager = DatabaseManager()
     db_objects = db_manager.get_session_canvas_objects(session_id)
     
     # Group objects by their path data
@@ -214,8 +288,7 @@ def clean_duplicate_objects(session_id: str):
 
 def process_canvas_changes(canvas_result, session_id: str, user_id: str):
     """
-    Process changes in canvas objects and update the database accordingly.
-    Handles additions, modifications, and deletions with proper versioning.
+    Process changes in canvas objects and track them for later saving.
     """
     if not canvas_result.json_data or "objects" not in canvas_result.json_data:
         return
@@ -236,24 +309,16 @@ def process_canvas_changes(canvas_result, session_id: str, user_id: str):
             path_key = json.dumps(obj_data.get("path"))
             path_to_db_obj[path_key] = db_obj
     
-    db_manager = DatabaseManager()
-    
-    # Clean up duplicate objects periodically
-    # This helps prevent database bloat from transform operations
-    if random.random() < 0.7:  # 70% chance to run cleanup on each change
-        clean_duplicate_objects(session_id)
+    # Initialize pending changes if not already done
+    if "pending_changes" not in st.session_state:
+        st.session_state["pending_changes"] = {"new": [], "modified": [], "deleted": []}
     
     # Handle new and modified objects
     for obj_id, obj in current_dict.items():
         if obj_id not in previous_dict:
-            # New object
-            canvas_obj = {
-                "id": str(uuid.uuid4()),
-                "session_id": session_id,
-                "object_data": json.dumps(obj),
-                "created_by": user_id
-            }
-            db_manager.add_canvas_object(canvas_obj)
+            # New object - add to pending changes
+            st.session_state["pending_changes"]["new"].append(obj)
+            st.session_state["has_unsaved_changes"] = True
         else:
             # Modified object - check if content changed
             prev_obj = previous_dict[obj_id]
@@ -272,11 +337,13 @@ def process_canvas_changes(canvas_result, session_id: str, user_id: str):
                     # Find the correct database object by path
                     if path_key in path_to_db_obj:
                         db_obj = path_to_db_obj[path_key]
-                        db_manager.edit_canvas_object(
-                            db_obj.id,  # Use the database ID
-                            json.dumps(obj),
-                            db_obj.version + 1
-                        )
+                        # Add to pending changes
+                        st.session_state["pending_changes"]["modified"].append({
+                            "id": db_obj.id,
+                            "object": obj,
+                            "version": db_obj.version
+                        })
+                        st.session_state["has_unsaved_changes"] = True
                     else:
                         # Fallback if no matching path found
                         current_version = 1
@@ -285,11 +352,13 @@ def process_canvas_changes(canvas_result, session_id: str, user_id: str):
                                 current_version = db_obj.version
                                 break
                         
-                        db_manager.edit_canvas_object(
-                            obj_id,
-                            json.dumps(obj),
-                            current_version + 1
-                        )
+                        # Add to pending changes
+                        st.session_state["pending_changes"]["modified"].append({
+                            "id": obj_id,
+                            "object": obj,
+                            "version": current_version
+                        })
+                        st.session_state["has_unsaved_changes"] = True
                 # For other changes to path objects (actual path data changed)
                 elif obj.get("path") != prev_obj.get("path"):
                     current_version = 1
@@ -298,11 +367,13 @@ def process_canvas_changes(canvas_result, session_id: str, user_id: str):
                             current_version = db_obj.version
                             break
                     
-                    db_manager.edit_canvas_object(
-                        obj_id,
-                        json.dumps(obj),
-                        current_version + 1
-                    )
+                    # Add to pending changes
+                    st.session_state["pending_changes"]["modified"].append({
+                        "id": obj_id,
+                        "object": obj,
+                        "version": current_version
+                    })
+                    st.session_state["has_unsaved_changes"] = True
             # For non-path objects, use the existing comparison logic
             elif json.dumps(obj, sort_keys=True) != json.dumps(prev_obj, sort_keys=True):
                 current_version = 1
@@ -311,25 +382,32 @@ def process_canvas_changes(canvas_result, session_id: str, user_id: str):
                         current_version = db_obj.version
                         break
                 
-                db_manager.edit_canvas_object(
-                    obj_id,
-                    json.dumps(obj),
-                    current_version + 1
-                )
+                # Add to pending changes
+                st.session_state["pending_changes"]["modified"].append({
+                    "id": obj_id,
+                    "object": obj,
+                    "version": current_version
+                })
+                st.session_state["has_unsaved_changes"] = True
     
     # Handle deleted objects
     for obj_id in previous_dict:
         if obj_id not in current_dict:
-            # Get current version and increment for deletion
+            # Get current version for deletion
             current_version = 1
             for db_obj in st.session_state.get("canvas_objects", []):
                 if db_obj.id == obj_id:
                     current_version = db_obj.version
                     break
             
-            db_manager.delete_canvas_object(obj_id, current_version + 1)
+            # Add to pending changes
+            st.session_state["pending_changes"]["deleted"].append({
+                "id": obj_id,
+                "version": current_version
+            })
+            st.session_state["has_unsaved_changes"] = True
     
-    # Update previous state
+    # Update previous state for the next comparison
     st.session_state["previous_canvas_state"] = current_objects
 
 def main():
@@ -383,7 +461,6 @@ def main():
 
 @st.dialog("Clear Canvas")
 def clear_canvas(session_id:str):
-    db_manager = DatabaseManager()
     st.write("Are you sure you want to clear the canvas? This action cannot be undone and will clear the entire canvas for all participants.")
     if st.button("Clear Canvas",key="clear_canvas_button"):
         # Clear all objects in the session
@@ -395,7 +472,6 @@ def clear_canvas(session_id:str):
 
 @st.dialog("Invite Participants")
 def invite_participants(session_id:str,participants:List[User]):
-    db_manager = DatabaseManager()
     participant_ids = [p.id for p in participants]
     users = db_manager.get_all_users()
     st.write("Invite users to join the session.")
@@ -422,9 +498,9 @@ def full_app():
     user_id = st.session_state["identity_utils"].user_id
     session_id = st.session_state["selected_session"].id
     
-    # Get current session's objects from database if not in state
-    if "canvas_drawing_state" not in st.session_state:
-        db_manager = DatabaseManager()
+    # Only fetch fresh objects from the database when needed
+    # This prevents constant reloading that makes modals unusable
+    if "canvas_objects" not in st.session_state or "canvas_drawing_state" not in st.session_state:
         db_objects = db_manager.get_session_canvas_objects(session_id)
         st.session_state["canvas_objects"] = db_objects
         st.session_state["canvas_drawing_state"] = convert_db_objects_to_canvas_format(db_objects)
@@ -450,7 +526,30 @@ def full_app():
 
     if st.sidebar.button("Clear Canvas"):
         clear_canvas(session_id)
-
+        
+    # Add Save and Refresh buttons
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.session_state.get("has_unsaved_changes", False):
+            if st.button("💾 Save Changes", type="primary"):
+                save_canvas_changes(session_id, user_id)
+                # Refresh after saving
+                refresh_canvas_data(session_id)
+                st.success("Changes saved successfully!")
+        else:
+            st.button("💾 Save Changes", disabled=True)
+            
+    with col2:
+        if st.button("🔄 Refresh Canvas"):
+            if st.session_state.get("has_unsaved_changes", False):
+                st.warning("You have unsaved changes that will be lost if you refresh. Save first or continue refreshing.")
+            refresh_canvas_data(session_id)
+            st.success("Canvas refreshed with latest changes!")
+    
+    # Show unsaved changes indicator if needed
+    if st.session_state.get("has_unsaved_changes", False):
+        st.warning("You have unsaved changes. Click 'Save Changes' to save them to the database.")
+    
     # Create a canvas component
     canvas_result = st_canvas(
         fill_color="rgba(255, 165, 0, 0.3)",  # Fixed fill color with some opacity
@@ -476,11 +575,14 @@ def full_app():
     #if canvas_result.image_data is not None:
     #    st.image(canvas_result.image_data)
     with st.expander("Canvas Data"):
-        if canvas_result.json_data is not None:
-            objects = pd.json_normalize(canvas_result.json_data["objects"])
+        # Use the session state canvas objects for display to ensure consistency
+        if st.session_state["canvas_drawing_state"] and "objects" in st.session_state["canvas_drawing_state"]:
+            objects = pd.json_normalize(st.session_state["canvas_drawing_state"]["objects"])
             for col in objects.select_dtypes(include=["object"]).columns:
                 objects[col] = objects[col].astype("str")
             st.dataframe(objects)
+        else:
+            st.write("No canvas objects found.")
 
     ai_prompt = st.text_input("Have Claude 3.7 generate a drawing for you!")
     if st.button("Generate Drawing"):
@@ -518,14 +620,27 @@ def full_app():
 
 
 
+def cleanup_resources():
+    """Clean up resources when the app is closing."""
+    print("Cleaning up resources...")
+    # Stop the watcher if it exists
+    if "db_watcher" in st.session_state:
+        try:
+            st.session_state["db_watcher"].stop()
+            st.session_state["db_watcher"].join()
+            print("Database watcher stopped")
+        except Exception as e:
+            print(f"Error stopping database watcher: {e}")
+
 if __name__ == "__main__":
     try:
+        # Register cleanup handler
+        atexit.register(cleanup_resources)
+        
         st.title("Neurosketch")
         st.sidebar.subheader("Configuration")
         main()
     except Exception as e:
         # Stop the watcher if it exists
-        if "db_watcher" in st.session_state:
-            st.session_state["db_watcher"].stop()
-            st.session_state["db_watcher"].join()
+        cleanup_resources()
         raise e
