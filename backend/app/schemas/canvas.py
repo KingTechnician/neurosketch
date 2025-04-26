@@ -64,6 +64,23 @@ class Path(BaseModel):
         description="List of path commands (Move, Line, Quadratic, Close)",
         min_items=1  # Require at least one command
     )
+
+    @classmethod
+    def from_list(cls, commands: List[List]) -> 'Path':
+        """Create a Path instance from a list of lists."""
+        path_commands = []
+        for cmd in commands:
+            if cmd[0] == "M":
+                path_commands.append(MoveCommand(x=cmd[1], y=cmd[2]))
+            elif cmd[0] == "L":
+                path_commands.append(LineCommand(x=cmd[1], y=cmd[2]))
+            elif cmd[0] == "Q":
+                path_commands.append(QuadraticCurveCommand(control_x=cmd[1], control_y=cmd[2], end_x=cmd[3], end_y=cmd[4]))
+            elif cmd[0] == "Z":
+                path_commands.append(ClosePathCommand())
+            else:
+                raise ValueError(f"Unknown command type: {cmd[0]}")
+        return cls(commands=path_commands)
     
     def to_list(self) -> List[List]:
         """Convert the path to a list of lists format for canvas rendering."""
@@ -130,6 +147,18 @@ class CanvasObject(BaseModel):
             
         return self
     
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'CanvasObject':
+        """
+        Create a CanvasObject instance from a dictionary.
+        This method is used for deserialization.
+        """
+        # Convert path data to Path object if present
+        if "path" in data and data["path"] is not None:
+            data["path"] = Path.from_list(data["path"])
+        
+        return cls(**data)
+    
     def to_dict(self) -> Dict[str, Any]:
         """
         Convert to a dictionary suitable for JSON serialization.
@@ -143,6 +172,16 @@ class CanvasObject(BaseModel):
             result["path"] = self.path.to_list()
         
         return result
+    
+    def from_literal(value: str) -> 'CanvasObject':
+        """
+        Convert a string literal to a CanvasObject instance.
+        """
+        # Parse the string literal to a dictionary
+        data = json.loads(value)
+        
+        # Create a CanvasObject instance from the dictionary
+        return CanvasObject(**data)
     
     def model_dump_json(self, **kwargs) -> str:
         """

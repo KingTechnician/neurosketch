@@ -28,6 +28,9 @@ async def generate(request: GenerateRequest,authorization:str = Header(None)) ->
     db=DatabaseManager()
     user = db.get_user(request.user_id)
     session = db.get_session(request.session_id)
+    session_objects =[json.loads(d.object_data) for d in db.get_session_canvas_objects(request.session_id)]
+    session_objects = [CanvasObject.from_dict(obj) for obj in session_objects]
+    existing_objects = "\n".join([obj.model_dump_json() for obj in session_objects])
     if not user:
         return GenerateResponse(
             status="error",
@@ -66,6 +69,7 @@ async def generate(request: GenerateRequest,authorization:str = Header(None)) ->
     - The canvas width and height
     - The object definition (type, position, size, color, etc.)
     - The prompt that describes the object to be drawn
+    - Any existing objects in the canvas (if any)
 
     Be sure that you are fitting as many required properties as possible in the object definition. There are typings for each of the properties that you *must use*.
 
@@ -74,6 +78,7 @@ async def generate(request: GenerateRequest,authorization:str = Header(None)) ->
     Prompt: {prompt}
     Canvas Width: {width}
     Canvas Height: {height}
+    Existing objects: {existing_objects}
 
     """
     # Create the request with the system prompt and user prompt
@@ -81,6 +86,7 @@ async def generate(request: GenerateRequest,authorization:str = Header(None)) ->
         prompt=request.prompt,
         width=session.width,
         height=session.height,
+        existing_objects=existing_objects
     )
 
     parser,format_instructioins = setup_langchain_parser()
