@@ -99,12 +99,12 @@ class CanvasObject(BaseModel):
     top: float = Field(..., description="Top position (Y coordinate)")
     width: float = Field(
         ..., 
-        gt=0,  # Must be greater than 0
+        gt=-1,  # Must be greater than -1
         description="Width of the object (REQUIRED, must be positive)"
     )
     height: float = Field(
         ..., 
-        gt=0,  # Must be greater than 0
+        gt=-1,  # Must be greater than -1
         description="Height of the object (REQUIRED, must be positive)"
     )
     
@@ -140,9 +140,9 @@ class CanvasObject(BaseModel):
             raise ValueError("Path type objects must have path data")
         
         # Double check width and height since they're critical
-        if self.width is None or self.width <= 0:
+        if self.width is None or self.width < 0:
             raise ValueError(f"Width must be greater than 0, got {self.width}")
-        if self.height is None or self.height <= 0:
+        if self.height is None or self.height < 0:
             raise ValueError(f"Height must be greater than 0, got {self.height}")
             
         return self
