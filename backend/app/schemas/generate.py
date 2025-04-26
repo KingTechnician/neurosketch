@@ -8,8 +8,8 @@ class GenerateRequest(BaseModel):
     user_id:str
     timestamp:str
 #    nonce:str
-    signature:str
     prompt:str
+
 
 class GenerateResponse(BaseModel):
     """
