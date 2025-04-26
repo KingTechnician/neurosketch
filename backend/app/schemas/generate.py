@@ -6,6 +6,7 @@ class GenerateRequest(BaseModel):
     Defines the structure of the input parameters for the generation endpoint.
     """
     user_id:str
+    session_id:str
     timestamp:str
 #    nonce:str
     prompt:str

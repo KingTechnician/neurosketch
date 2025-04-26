@@ -6,7 +6,7 @@ from typing import List, Optional
 from contextlib import contextmanager
 from datetime import datetime
 import time
-from classes import CanvasObjectDB
+from .classes import CanvasObjectDB
 from dotenv import load_dotenv
 
 from .classes import Session, User, SessionParticipant

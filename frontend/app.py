@@ -442,8 +442,8 @@ def full_app():
         stroke_color=stroke_color,
         background_color="#eee",
         update_streamlit=True,
-        height=1000,
-        width=1000,
+        height=st.session_state["selected_session"].height,
+        width=st.session_state["selected_session"].width,
         drawing_mode=drawing_mode,
         point_display_radius=point_display_radius if drawing_mode == "point" else 0,
         display_toolbar=False,
@@ -474,6 +474,7 @@ def full_app():
             st.success(f"Drawing generation queued: {ai_prompt}")
             generate_request_obj = {
                 "user_id": st.session_state["identity_utils"].user_id,
+                "session_id": st.session_state["selected_session"].id,
                 "timestamp": str(time.time()),
                 "prompt": ai_prompt
             }
