@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from .routes import hello_router,generate_router
-from utils.db_watcher import setup_db_watcher
+#from utils.db_watcher import setup_db_watcher
 from dotenv import load_dotenv
 
 import os
@@ -28,14 +28,14 @@ async def startup_event():
         # This will be called when the database file changes
         pass
     
-    app.state.db_observer = setup_db_watcher(on_db_change)
+    #app.state.db_observer = setup_db_watcher(on_db_change)
 
-@app.on_event("shutdown")
-async def shutdown_event():
-    # Stop the file observer when the application shuts down
-    if hasattr(app.state, 'db_observer'):
-        app.state.db_observer.stop()
-        app.state.db_observer.join()
+#@app.on_event("shutdown")
+#async def shutdown_event():
+#    # Stop the file observer when the application shuts down
+#    if hasattr(app.state, 'db_observer'):
+#        app.state.db_observer.stop()
+#        app.state.db_observer.join()
 
 # If running this file directly with 'python main.py', start the server
 if __name__ == "__main__":
