@@ -1,41 +1,28 @@
-import sqlite3
-import json
-import uuid
+import psycopg2
 
-conn = sqlite3.connect("neurosketch.db")
+conn = psycopg2.connect(
+    dbname="neurosketch",  # Your database name (visible in screenshot)
+    user="postgres",       # Default username (visible as owner in screenshot)
+    password="Ach13v3m3nt1!",  # The password you set during installation
+    host="localhost",      # For local connections
+    port="5432"            # Default PostgreSQL port
+)
+"""CREATE TABLE sessions(
+    id TEXT PRIMARY KEY,
+    title VARCHAR(255) NOT NULL,
+    height INTEGER NOT NULL,
+    width INTEGER NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+)"""
+
+# Test the connection
 cursor = conn.cursor()
 
-
-query = """
-INSERT INTO sessions (id, title, canvas)
-VALUES (?, ?, ?)
-"""
-
-session_id = str(uuid.uuid4())
-
-user_id = "67119570-4772-4d63-92b2-326dffd95907"
-title = "Drawing Some Random Shapes"
-
-canvas_data = {
-    "shapes": [
-        {
-            "type": "rectangle",
-            "x": 10,
-            "y": 20,
-            "width": 100,
-            "height": 50,
-        }]
-}
-canvas = json.dumps(canvas_data)
-
-cursor.execute(query, (session_id, title, canvas))
+#Add fake session data
 
 
-participant_query = """
-INSERT INTO session_participants (id,user_id)
-VALUES (?, ?)
-"""
 
-cursor.execute(participant_query, (session_id, user_id))
-
-conn.commit()
+cursor.execute("SELECT * FROM sessions")
+tables = cursor.fetchall()
+print("Available tables:", tables)

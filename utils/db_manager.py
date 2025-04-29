@@ -1,8 +1,9 @@
 import os
-import sqlite3
+import psycopg2
+from psycopg2.extras import DictCursor
 import uuid
 import rsa
-from typing import List, Optional
+from typing import List, Optional, Dict, Any, Tuple
 from contextlib import contextmanager
 from datetime import datetime
 import time
@@ -33,13 +34,15 @@ class DatabaseManager:
             return
             
         load_dotenv()
-        self.db_path = os.getenv('PATH_TO_DB')
-        if not self.db_path:
-            raise ValueError("Database path not found in environment variables")
         
-        # Enable WAL mode for better concurrent access
-        with self._get_connection() as conn:
-            conn.execute('PRAGMA journal_mode=WAL')
+        # PostgreSQL connection parameters
+        self.db_params = {
+            'dbname': os.getenv('DB_NAME', 'neurosketch'),
+            'user': os.getenv('DB_USER', 'postgres'),
+            'password': os.getenv('DB_PASSWORD', 'Ach13v3m3nt1!'),
+            'host': os.getenv('DB_HOST', 'localhost'),
+            'port': os.getenv('DB_PORT', '5432')
+        }
         
         # Mark as initialized
         self._initialized = True
@@ -54,21 +57,37 @@ class DatabaseManager:
         """Context manager for database connections with automatic closing."""
         conn = None
         try:
-            conn = sqlite3.connect(self.db_path)
-            conn.row_factory = sqlite3.Row
+            conn = psycopg2.connect(**self.db_params)
             yield conn
         finally:
             if conn:
                 conn.close()
+    
+    def _adapt_query(self, query: str) -> str:
+        """Convert SQLite parameter style to PostgreSQL style."""
+        return query.replace('?', '%s')
+    
+    def _row_to_tuple(self, row: Dict[str, Any], columns: List[str]) -> Tuple:
+        """Convert a dictionary row to a tuple with specified column order."""
+        result = []
+        for col in columns:
+            value = row.get(col)
+            # Convert datetime objects to ISO format strings
+            if isinstance(value, datetime):
+                value = value.isoformat()
+            result.append(value)
+        return tuple(result)
 
-    def _execute_with_retry(self, query: str, params: tuple = None, max_retries: int = 3, is_write: bool = True) -> sqlite3.Cursor:
+    def _execute_with_retry(self, query: str, params: tuple = None, max_retries: int = 3, is_write: bool = True):
         """Execute a query with retry logic for handling concurrent access."""
-        # No locks needed, just retry on database locked errors
+        # Convert SQLite style parameters to PostgreSQL style
+        query = self._adapt_query(query)
+        
         retry_count = 0
         while retry_count < max_retries:
             try:
                 with self._get_connection() as conn:
-                    cursor = conn.cursor()
+                    cursor = conn.cursor(cursor_factory=DictCursor)
                     if params:
                         cursor.execute(query, params)
                     else:
@@ -76,8 +95,8 @@ class DatabaseManager:
                     if is_write:
                         conn.commit()
                     return cursor
-            except sqlite3.OperationalError as e:
-                if "database is locked" in str(e) and retry_count < max_retries - 1:
+            except psycopg2.OperationalError as e:
+                if retry_count < max_retries - 1:
                     retry_count += 1
                     time.sleep(0.1 * retry_count)  # Exponential backoff
                     continue
@@ -106,16 +125,22 @@ class DatabaseManager:
         """Retrieve a session by its ID."""
         query = "SELECT * FROM sessions WHERE id = ?"
         with self._get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute(query, (session_id,))
+            cursor = conn.cursor(cursor_factory=DictCursor)
+            cursor.execute(self._adapt_query(query), (session_id,))
             row = cursor.fetchone()
-            return Session.from_db_row(tuple(row)) if row else None
+            if row:
+                # Convert to tuple with expected column order
+                columns = ['id', 'title', 'height', 'width', 'created_at', 'updated_at']
+                row_tuple = self._row_to_tuple(row, columns)
+                return Session.from_db_row(row_tuple)
+            return None
 
     def update_session(self, session: Session) -> bool:
         """Update an existing session."""
+        # PostgreSQL uses NOW() instead of CURRENT_TIMESTAMP
         query = """
         UPDATE sessions 
-        SET title = ?, canvas = ?, updated_at = CURRENT_TIMESTAMP
+        SET title = ?, canvas = ?, updated_at = NOW()
         WHERE id = ?
         """
         cursor = self._execute_with_retry(query, (session.title, session.canvas, session.id), is_write=True)
@@ -145,17 +170,28 @@ class DatabaseManager:
         """Retrieve a user by their ID."""
         query = "SELECT * FROM users WHERE id = ?"
         with self._get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute(query, (user_id,))
+            cursor = conn.cursor(cursor_factory=DictCursor)
+            cursor.execute(self._adapt_query(query), (user_id,))
             row = cursor.fetchone()
-            return User.from_db_row(tuple(row)) if row else None
+            if row:
+                # Convert to tuple with expected column order
+                columns = ['id', 'public_key', 'client_identifier', 'display_name', 'created_at']
+                row_tuple = self._row_to_tuple(row, columns)
+                return User.from_db_row(row_tuple)
+            return None
         
     def get_all_users(self) -> List[User]:
         query = "SELECT * FROM users"
         with self._get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute(query)
-            return [User.from_db_row(tuple(row)) for row in cursor.fetchall()]
+            cursor = conn.cursor(cursor_factory=DictCursor)
+            cursor.execute(self._adapt_query(query))
+            users = []
+            for row in cursor.fetchall():
+                # Convert to tuple with expected column order
+                columns = ['id', 'public_key', 'client_identifier', 'display_name', 'created_at']
+                row_tuple = self._row_to_tuple(row, columns)
+                users.append(User.from_db_row(row_tuple))
+            return users
 
 
     def add_new_participants(self,session_id:str, user_ids:List[str]) -> bool:
@@ -172,10 +208,15 @@ class DatabaseManager:
         """Retrieve a user by their client identifier."""
         query = "SELECT * FROM users WHERE client_identifier = ?"
         with self._get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute(query, (client_id,))
+            cursor = conn.cursor(cursor_factory=DictCursor)
+            cursor.execute(self._adapt_query(query), (client_id,))
             row = cursor.fetchone()
-            return User.from_db_row(tuple(row)) if row else None
+            if row:
+                # Convert to tuple with expected column order
+                columns = ['id', 'public_key', 'client_identifier', 'display_name', 'created_at']
+                row_tuple = self._row_to_tuple(row, columns)
+                return User.from_db_row(row_tuple)
+            return None
 
     def create_anonymous_user(self, user_id:str,public_key:str, display_name: str) -> User:
         """Create an anonymous user with a random UUID and RSA key pair."""
@@ -267,9 +308,15 @@ class DatabaseManager:
         WHERE sp.id = ?
         """
         with self._get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute(query, (session_id,))
-            return [User.from_db_row(tuple(row)) for row in cursor.fetchall()]
+            cursor = conn.cursor(cursor_factory=DictCursor)
+            cursor.execute(self._adapt_query(query), (session_id,))
+            users = []
+            for row in cursor.fetchall():
+                # Convert to tuple with expected column order
+                columns = ['id', 'public_key', 'client_identifier', 'display_name', 'created_at']
+                row_tuple = self._row_to_tuple(row, columns)
+                users.append(User.from_db_row(row_tuple))
+            return users
 
     def get_user_sessions(self, user_id: str) -> List[Session]:
         """Get all sessions a user is participating in."""
@@ -279,9 +326,15 @@ class DatabaseManager:
         WHERE sp.user_id = ?
         """
         with self._get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute(query, (user_id,))
-            return [Session.from_db_row(tuple(row)) for row in cursor.fetchall()]
+            cursor = conn.cursor(cursor_factory=DictCursor)
+            cursor.execute(self._adapt_query(query), (user_id,))
+            sessions = []
+            for row in cursor.fetchall():
+                # Convert to tuple with expected column order
+                columns = ['id', 'title', 'height', 'width', 'created_at', 'updated_at']
+                row_tuple = self._row_to_tuple(row, columns)
+                sessions.append(Session.from_db_row(row_tuple))
+            return sessions
         
     def clear_canvas(self,session_id:str) -> bool:
         """Clear all canvas objects from a session."""
@@ -332,12 +385,12 @@ class DatabaseManager:
         # First get current version
         version_query = "SELECT version FROM canvas_objects WHERE id = ?"
         with self._get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute(version_query, (object_id,))
+            cursor = conn.cursor(cursor_factory=DictCursor)
+            cursor.execute(self._adapt_query(version_query), (object_id,))
             result = cursor.fetchone()
             if not result:
                 return False
-            current_version = result[0]
+            current_version = result['version']
             
             # Only proceed if new version is greater
             if new_version <= current_version:
@@ -346,7 +399,7 @@ class DatabaseManager:
         # Update the object
         update_query = """
         UPDATE canvas_objects 
-        SET object_data = ?, version = ?, updated_at = CURRENT_TIMESTAMP
+        SET object_data = ?, version = ?, updated_at = NOW()
         WHERE id = ?
         """
         cursor = self._execute_with_retry(
@@ -371,12 +424,12 @@ class DatabaseManager:
         # First get current version
         version_query = "SELECT version FROM canvas_objects WHERE id = ?"
         with self._get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute(version_query, (object_id,))
+            cursor = conn.cursor(cursor_factory=DictCursor)
+            cursor.execute(self._adapt_query(version_query), (object_id,))
             result = cursor.fetchone()
             if not result:
                 return False
-            current_version = result[0]
+            current_version = result['version']
             
             # Only proceed if provided version is greater
             if version <= current_version:
@@ -403,6 +456,12 @@ class DatabaseManager:
         """
         query = "SELECT * FROM canvas_objects WHERE session_id = ?"
         with self._get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute(query, (session_id,))
-            return [CanvasObjectDB.from_db_row(tuple(row)) for row in cursor.fetchall()]
+            cursor = conn.cursor(cursor_factory=DictCursor)
+            cursor.execute(self._adapt_query(query), (session_id,))
+            objects = []
+            for row in cursor.fetchall():
+                # Convert to tuple with expected column order
+                columns = ['id', 'session_id', 'object_data', 'created_by', 'created_at', 'updated_at', 'version']
+                row_tuple = self._row_to_tuple(row, columns)
+                objects.append(CanvasObjectDB.from_db_row(row_tuple))
+            return objects

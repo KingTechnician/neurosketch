@@ -3,6 +3,8 @@ backend/backend_env/*
 backend/app/.env
 db/db_env/*
 */__pycache__/*
+*/*/*.pyc
+*/*/*.pyc
 frontend/user_identity.json
 db/neurosketch.db
 
