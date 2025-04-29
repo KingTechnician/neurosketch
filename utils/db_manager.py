@@ -223,7 +223,6 @@ class DatabaseManager:
         # Generate UUIDs for both id and client_identifier
         client_id = str(uuid.uuid4())
         
-        print("Public key:", public_key)
         # Create and store user
         user = User(
             id=user_id,
@@ -240,30 +239,23 @@ class DatabaseManager:
         Generates a challenge internally and verifies it using the stored public key.
         Returns True if verification succeeds, False otherwise.
         """
-        print("Verifying identity of:", user_id)
         user = self.get_user(user_id)
-        print(user)
         if not user:
             return False
             
         try:
             # Create a challenge message
             challenge = os.urandom(32)  # 256-bit random challenge
-            print("Generated challenge:", challenge)
             
             # Load the stored public key
             public_key = rsa.PublicKey.load_pkcs1(user.public_key.encode())
             
             # Create challenge response by encrypting with public key
             challenge_response = rsa.encrypt(challenge, public_key)
-
-            print("Encrypted challenge response:", challenge_response)
             
             # Verify by decrypting with private key
             try:
                 decrypted = rsa.decrypt(challenge_response, private_key)
-                print("Decrypted challenge:", decrypted)
-                print("Original challenge:", challenge)
                 return decrypted == challenge
             except rsa.pkcs1.DecryptionError as e:
                 print("Decryption failed:", str(e))

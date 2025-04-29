@@ -25,10 +25,11 @@ from identity_utils import IdentityUtils
 from dotenv import load_dotenv
 import random
 from utils.db_manager import DatabaseManager
-from utils.db_watcher import setup_db_watcher
 import extra_streamlit_components as stx
+from dotenv import load_dotenv
 import rsa
 
+load_dotenv()  # Load environment variables from .env file
 
 # Helper functions for canvas operations
 def save_canvas_changes(session_id, user_id):
@@ -183,7 +184,6 @@ def show_session_list():
             submitted = st.form_submit_button("Create Session")
 
             if submitted:
-                print("Creating new session...")
                 if session_title:
                     # Create a new session in the database
                     user_id = st.session_state["identity_utils"].user_id
@@ -191,7 +191,7 @@ def show_session_list():
                     participants.extend(invited_users)  # Add invited users to participants list
                     session_id = str(uuid.uuid4())
                     session = Session(id = session_id,title=session_title, width=canvas_width, height=canvas_height,participants=participants)
-                    print(session)
+                    
                     db_manager.create_session(session)
                     
                     st.success(f"Session '{session_title}' created successfully!")
@@ -210,7 +210,6 @@ def show_session_list():
             # Get participants for this session
             participants = db_manager.get_session_participants(session.id)
 
-            print(participants)
 
             for participant in participants:
                 session.participants.append(participant)
@@ -499,7 +498,6 @@ def invite_participants(session_id:str,participants:List[User]):
             ids = [u.split(":")[0] for u in selected_users]
             names = [u.split(":")[1] for u in selected_users]
             result = db_manager.add_new_participants(session_id,user_ids=ids)
-            print(result)
             st.success(f"Invites sent to: {', '.join(names)}")
         else:
             st.error("Please select at least one user to invite.")
@@ -615,15 +613,14 @@ def full_app():
             signature = rsa.sign(request_data.encode("utf-8"), private_key, "SHA-256")
             # Convert signature to base64 string
             signature_b64 = base64.b64encode(signature).decode("utf-8")
-            print("Request data being signed:", request_data)
-            print("Signature:", signature_b64)
             # Create POST request to localhost:8000/generate, with signature as header
             headers = {
                 "Authorization": f"Bearer {signature_b64}"
             }
             # Make the request to the backend API
-            response = requests.post("http://localhost:8000/generate", json=generate_request_obj, headers=headers)
-            print("Response:", response.json())
+            backend_url = os.getenv("BACKEND_URL", "http://localhost:8000")
+            response = requests.post(f"{backend_url}/generate", json=generate_request_obj, headers=headers)
+            st.success(response.json().get("message", "Drawing generation request sent!"))  
 
         else:
             st.error("Please enter a prompt to generate a drawing.")

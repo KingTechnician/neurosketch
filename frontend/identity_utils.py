@@ -34,7 +34,6 @@ class IdentityUtils:
             print(f"Using cached identity verification (verified {current_time - last_verified:.1f}s ago)")
     
     def _check_identity(self) -> bool:
-        print("Checking identity of", self.user_id) 
         try:
             if not self.user_id or not self.private_key:
                 return False
